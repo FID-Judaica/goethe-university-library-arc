@@ -1,0 +1,123 @@
+keys:
+  base:
+    - consonants
+    - vowels
+    - other
+    - clusters
+    - infrequent: 10
+
+  front:
+    - beginning
+    - beginning patterns
+
+  end:
+    groups: final
+    suffix: true
+
+char_sets:
+  C: consonants
+  F:
+    key: front
+    chars: consonants
+
+consonants:
+  ʾ: א
+  b: ב
+  v: ב
+  g: ג
+  d: ד
+  h: ה
+  ṿ: [וו, ו]
+  z: ז
+  ḥ: ח
+  ṭ: ט
+  y: [יי, י]
+  k: כ
+  kh: כ
+  l: ל
+  m: מ
+  n: נ
+  s: ס
+  ʿ: ע
+  p: פ
+  f: פ
+  ts: צ
+  ḳ: ק
+  r: ר
+  ś: ש
+  sh: ש
+  t: ת
+
+vowels:
+  i: י
+  e: ['', [3, י]]
+  a: ''
+  o: [ו, [5, '']]
+  u: ו
+
+other:
+  "'": "'"
+
+clusters:
+  "k'h": כה
+  "s'h": סה
+  "t's": תס
+  iyu: יו
+  yu: יו
+  yu: יו
+  uy: וי
+  yo: יו
+  oy: וי
+  iy: יי
+  yi: יי
+  ayi: [י, יי]
+  ʾa: א
+  aʾ: א
+
+infrequent:
+  i: א
+  e: א
+  a: א
+  o: א
+
+final:
+  k: ך
+  kh: ך
+  m: ם
+  n: ן
+  f: ף
+  ts: ץ
+  ṿ: ו
+  i: י
+  i: [י, יא]
+  o: [ו, וא, א]
+  oh: [ה, וה]
+  u: ו
+  im: ים
+  enu: ינו
+  ayim: [יים, ים]
+  aṿ: [יו, ו]
+  yah: יה
+  eha: יה
+  ah: ה
+  eh: ה
+
+beginning:
+  y: י
+  yi: [י, יי]
+  ṿ: ו
+
+beginning patterns:
+  FiCC: [\1\2\3, \1י\2\3]
+  FoCC: [\1ו\2\3, \1\2\3]
+  FeCC: [\1\2\3]
+
+flattened:
+  v: b
+  ḵ: k
+  f: p
+
+broken_clusters:
+  kh: "k'h"
+  sh: "s'h"
+  ts: "t's"
