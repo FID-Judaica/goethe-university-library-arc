@@ -1,3 +1,4 @@
+import fastentrypoints
 from setuptools import setup
 
 setup(
@@ -10,5 +11,7 @@ setup(
     description='transliteration to Hebrew translator',
     long_description=open('README.rst').read(),
     packages=['arc'],
+    entry_points={'console_scripts': [
+        'fl=arc.filters:main']},
     install_requires=['pica_parse', 'filtermaker', 'deromanize', 'PyYaml'],
 )

@@ -17,16 +17,17 @@
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
 
-import re
+import pica_parse
 import string
 import filtermaker
+import json
 
 # # Data Definitions # #
 # common words and chars in other languages which should not appear in Hebrew.
 
 # matches normally quoted words or phrases
-SING_QUOTE = re.compile(r"(\W|^)'\w.*?[\w.]'(\W|$)")
-DUB_QUOTE = re.compile(r'(\W|^)"\w.*?[\w.]"(\W|$)')
+SING_QUOTE = r"(\W|^)'\w.*?[\w.]'(\W|$)"
+DUB_QUOTE = r'(\W|^)"\w.*?[\w.]"(\W|$)'
 
 
 OLD_CHARS = set('ʾʿăaāâbdĕeēêfghḥiîkḵlmnŏoōôpqrsṣśštṭuûvwyz')
@@ -58,9 +59,9 @@ BAD_WITH_OLD = BAD_CHARS | OLD_CHARS
 # ō should only appear at the ends of words or in personal names. It's not
 # illegal, but it's very suspicious. short /u/ is also suspicious.
 SHORT_U = 'u'
-UNMARKED_LONG_O = re.compile(r'ō\w')
+UNMARKED_LONG_O = r'ō\w'
 
-NON_HEB = re.compile(r'''
+NON_HEB = r'''(?x)
     # search certain words
     \b
     (a|der|di|des|de|dos|das|dem|in|der|zi|von|
@@ -69,11 +70,11 @@ NON_HEB = re.compile(r'''
 
     \bth|au|ao|ae|aa|oe|pf|
     ei|ie|ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
-    ''', flags=re.VERBOSE)
-YIDDISH_ENDING = re.compile('['+''.join(CONSONANT_SET-{'y'})+']n(\s|$)')
-ENGLISH_Y = re.compile('['+CONSONANTS+']y(\s|$)')
-ARABIC_ARTICLE = re.compile('(\W|^)al-[^p]')
-LONG_IN_CLOSED = re.compile('[îīûūôōêē][' + CONSONANTS + ']{2}')
+    '''
+YIDDISH_ENDING = '['+''.join(CONSONANT_SET-{'y'})+']n(\s|$)'
+ENGLISH_Y = '['+CONSONANTS+']y(\s|$)'
+ARABIC_ARTICLE = '(\W|^)al-[^p]'
+LONG_IN_CLOSED = '[îīûūôōêē][' + CONSONANTS + ']{2}'
 
 
 # # The actual tests that are used on the line # #
@@ -130,12 +131,12 @@ def longinclosed(line):
 Line = fs.Filter
 
 
-#####################################################################
-#### Here ends the library part. The rest is for the CLI utility ####
-#####################################################################
+###################################################################
+# # Here ends the library part. The rest is for the CLI utility # #
+###################################################################
 
 
-DESCRIPTION='''\
+DESCRIPTION = '''\
 Filter input lines by properties (character sets and combinations):
 
 \t%s
@@ -203,6 +204,8 @@ def main():
         help='a python expression which must evaluate to True in a boolean '
         'context for the line to print. current line can be accessed with the '
         'name `line`')
+    add('-p', '--pica', action='store_true',
+        help='pica on stdin, json on stdout')
 
     args = ap.parse_args()
     required = set(args.required.split(',')) - {''}
@@ -211,6 +214,26 @@ def main():
 
     test = tester_maker(args.expression)
 
-    for line in (Line(l.rstrip(), *props) for l in sys.stdin):
-        if test(line, required, forbidden):
-            print(line)
+    if args.pica:
+        for record in pica_parse.file2records(sys.stdin):
+            d = {'ppn': record.ppn}
+            heb = {}
+            for field in record:
+                if field.id in d:
+                    if field.get('U') == 'Hebr':
+                        del field.dict['U']
+                        heb[field.id] = {k: v[0] for k, v
+                                         in field.dict.items()}
+                    else:
+                        continue
+                else:
+                    for k, sub in field.items():
+                        if test(Line(sub, *props), required, forbidden):
+                            d.setdefault(field.id, {})[k] = sub
+
+            if len(d) > 1:
+                print(json.dumps(d, ensure_ascii=False))
+    else:
+        for line in (Line(l.rstrip(), *props) for l in sys.stdin):
+            if test(line, required, forbidden):
+                print(line)
