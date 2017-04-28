@@ -24,7 +24,7 @@ class Decoder:
     def __init__(self, profile):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
-        self.keys = deromanize.TransKey(profile)
+        self.keys = deromanize.KeyGenerator(profile)
 
     def __getitem__(self, key):
         return self.profile[key]
