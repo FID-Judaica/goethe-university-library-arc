@@ -8,7 +8,11 @@ decoder = decode.Decoder(yaml.safe_load(CONFIG_FILE.open()))
 
 
 def main():
-    print(decoder.decode(sys.argv[1]))
+    for t in map(str.rstrip, sys.stdin):
+        print(t)
+        for word in decoder.decode(t):
+            print(*(str(i) for i in word))
+        print()
 
 
 if __name__ == '__main__':
