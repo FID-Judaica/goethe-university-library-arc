@@ -64,6 +64,9 @@ def junker(word):
             remainder = word[i:]
             break
         junk.append(char)
+        if junk[-1] == "'":
+            del junk[-1]
+            remainder = "'" + remainder
 
     return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
 
@@ -73,23 +76,7 @@ def double_junker(word):
     tuple with (extra stuff from the front, word, extra stuff from the back)'''
     front_junk, remainder = junker(word)
     back_junk, stripped_word = [i[::-1] for i in junker(remainder[::-1])]
-    return [front_junk, stripped_word, back_junk]
-
-
-def junk_splitter(func):
-    '''decorator to ignore punctuation before and after words'''
-    @functools.wraps(func)
-    def split_func(word, *args, **kwargs):
-        front_junk, stripped_word, back_junk = double_junker(word)
-        if stripped_word:
-            output = func(stripped_word, *args, **kwargs)
-        else:
-            output = ''
-
-        return front_junk + output + back_junk
-
-    return split_func
-
+    return front_junk, stripped_word, back_junk
 ###########################
 
 
@@ -232,8 +219,8 @@ def coredecode(keys, word):
         return get_self_rep(word)
     replist = _coredecode(keys, word)
     for i in replist:
-        if hspell.check_word(str(i)):
-            i.weight = -1
+        if hspell.check_word(str(i)) and hspell.linginfo(str(i)):
+            i.weight -= 100
     replist.prune()
     return replist
 
@@ -288,4 +275,4 @@ def get_self_rep(string):
 maqef = keygenerator.ReplacementList('-', ['־'])
 maqef.heb = maqef
 u = {'û', 'u'}
-hspell = Hspell()
+hspell = Hspell(linguistics=True)

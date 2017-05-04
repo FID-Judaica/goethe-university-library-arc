@@ -1,0 +1,9 @@
+[submodule "deromanize"]
+	path = deromanize
+	url = https://github.com/FID-Judaica/deromanize
+[submodule "filtermaker"]
+	path = filtermaker
+	url = https://github.com/FID-Judaica/filtermaker
+[submodule "pica_parse.py"]
+	path = pica_parse.py
+	url = https://github.com/FID-Judaica/pica_parse.py
