@@ -97,19 +97,30 @@ class Decoder:
 
     def decode(self, line):
         """Return a list of Word instances from a given line of input."""
-        cleanedline = self.cleanline(line)
-        chunks = self.makechunks(cleanedline)
-        hebwords = []
+        chunks = self.makechunks(line)
+        return self.get_heb(chunks)
+
+    def get_heb(self, chunks):
+        return [deromanize.add_reps([i.heb for i in chunk])
+                if isinstance(chunk, list) else get_self_rep(chunk)
+                for chunk in chunks]
+
+    def get_rom(self, chunks):
+        romed = []
         for chunk in chunks:
             if isinstance(chunk, list):
-                hebwords.append(deromanize.add_reps([i.heb for i in chunk]))
+                try:
+                    romed.append('-'.join(i.word for i in chunk))
+                except AttributeError:
+                    print(chunks)
+                    raise
             else:
-                hebwords.append(get_self_rep(chunk))
-
-        return hebwords
+                romed.append(str(chunk))
+        return romed
 
     def makechunks(self, line):
-        rawchuncks = [i.split('-') for i in line.split()]
+        cleanedline = self.cleanline(line)
+        rawchuncks = [i.split('-') for i in cleanedline.split()]
         remixed = []
         newchunk = []
         for chunk in rawchuncks:
@@ -188,7 +199,7 @@ class Word:
         if front:
             word = get_self_rep(front) + word
         if back:
-            word += get_self_rep(back)
+            word = word + get_self_rep(back)
         return word
 
     def __repr__(self):
@@ -220,7 +231,7 @@ def coredecode(keys, word):
     replist = _coredecode(keys, word)
     for i in replist:
         if hspell.check_word(str(i)) and hspell.linginfo(str(i)):
-            i.weight -= 100
+            i.weight -= 1000
     replist.prune()
     return replist
 
@@ -274,5 +285,6 @@ def get_self_rep(string):
 
 maqef = keygenerator.ReplacementList('-', ['־'])
 maqef.heb = maqef
+maqef.word = '-'
 u = {'û', 'u'}
 hspell = Hspell(linguistics=True)

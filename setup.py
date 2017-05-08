@@ -13,5 +13,10 @@ setup(
     packages=['arc'],
     entry_points={'console_scripts': [
         'fl=arc.filters:main']},
-    install_requires=['pica_parse', 'filtermaker', 'deromanize', 'PyYaml'],
+    install_requires=[
+        'pica_parse',
+        'filtermaker',
+        'deromanize',
+        'PyYaml',
+        'HspellPy',],
 )

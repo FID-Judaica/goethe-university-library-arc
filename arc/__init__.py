@@ -16,3 +16,5 @@
 #
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
+
+from .decode import Decoder
