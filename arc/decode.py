@@ -203,7 +203,7 @@ class Word:
         return word
 
     def __repr__(self):
-        return f"Word({self.word!r})"
+        return "Word({!r})".format(self.word)
 
 
 class Prefix(Word):
@@ -222,7 +222,7 @@ class Prefix(Word):
         return word
 
     def __repr__(self):
-        return f"Prefix({self.word!r})"
+        return "Prefix({!r})".format(self.word)
 
 
 def coredecode(keys, word):
