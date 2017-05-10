@@ -6,6 +6,7 @@ keys:
 
   mid:
     - clusters
+    - mid_patterns
     - infrequent: 15
 
   end:
@@ -17,6 +18,9 @@ keys:
     suffix: true
 
   front: beginning
+
+char_sets:
+  V: vowels
 
 consonants:
   ʾ: א
@@ -45,7 +49,7 @@ consonants:
   ś: ש
   š: ש
   t: ת
-  "'": [ע, א]
+  "'": [א, ע]
 
 vowels:
   î: [י, [10, '']]
@@ -75,6 +79,9 @@ clusters:
   îy: יי
   yî: יי
 
+mid_patterns:
+  VV: [\1א\2, \1\2, \1ע\2]
+
 infrequent:
   î: א
   ê: א
@@ -91,6 +98,7 @@ vowel errors:
   ē: י
   e: י
   â: ''
+  t: ט
 
 final:
   k: ך
@@ -106,7 +114,6 @@ final:
   ē: ה
   ā: [ה, '']
   ō: ה
-  im: ים
   ot: ות
   ōt: ות
   it: ית
