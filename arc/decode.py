@@ -101,9 +101,17 @@ class Decoder:
         return self.get_heb(chunks)
 
     def get_heb(self, chunks):
-        return [deromanize.add_reps([i.heb for i in chunk])
-                if isinstance(chunk, list) else get_self_rep(chunk)
-                for chunk in chunks]
+        hebz = []
+        for chunk in chunks:
+            if isinstance(chunk, list):
+                if len(chunk) >= 2:
+                    he = chunk[-1].heb
+                    if he.key == str(he[0]):
+                        chunk[-1].heb = get_self_rep('-' + str(he[0]))
+                hebz.append(deromanize.add_reps([i.heb for i in chunk]))
+            else:
+                hebz.append(get_self_rep(chunk))
+        return hebz
 
     def get_rom(self, chunks):
         romed = []
