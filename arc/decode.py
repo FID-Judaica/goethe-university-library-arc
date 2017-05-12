@@ -106,7 +106,7 @@ class Decoder:
             if isinstance(chunk, list):
                 if len(chunk) >= 2:
                     he = chunk[-1].heb
-                    if he.key == str(he[0]):
+                    if he.key == str(he[0]) and he.key != '':
                         chunk[-1].heb = get_self_rep('-' + str(he[0]))
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
             else:
