@@ -13,6 +13,9 @@ def main():
         for word in decoder.decode(t):
             word.prune()
             print(word)
+            print(*map(repr, word.keyparts), sep='\t')
+            for w in word:
+                print(*map(repr, w.value), sep='\t')
         print()
 
 
