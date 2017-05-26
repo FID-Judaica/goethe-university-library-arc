@@ -91,6 +91,7 @@ class Decoder:
         self.gempfx = trees.Trie(
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
+        
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -246,12 +247,17 @@ def coredecode(keys, word):
 
 def _coredecode(keys, word):
     # add aleph to words that begin with vowels.
-    if word[0] in keys.profile['vowels']:
+    vowels = keys.profile['vowels']
+    if word[0] in vowels:
         word = 'ʾ' + word
     # remove doubled letters
-    newword = ''
-    for i, c in enumerate(word):
-        if i == 0 or c != word[i-1]:
+    newword = word[0]
+    for i, c in enumerate(word[1:]):
+        i += 1
+        print(c, word[i-1])
+        if c in vowels and word[i-1] in vowels:
+            newword += "'" + c
+        elif c != word[i-1]:
             newword += c
     word = newword
     # get ending clusters, then beginning clusters, then whatever's left in the
