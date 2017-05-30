@@ -121,7 +121,7 @@ class Decoder:
                 try:
                     romed.append('-'.join(i.word for i in chunk))
                 except AttributeError:
-                    print(chunks)
+                    print(chunks, file=2)
                     raise
             else:
                 romed.append(str(chunk))
@@ -254,7 +254,6 @@ def _coredecode(keys, word):
     newword = word[0]
     for i, c in enumerate(word[1:]):
         i += 1
-        print(c, word[i-1])
         if c in vowels and word[i-1] in vowels:
             newword += "'" + c
         elif c != word[i-1]:
