@@ -22,6 +22,7 @@ import functools
 import deromanize
 from deromanize import trees, keygenerator
 from HspellPy import Hspell
+import hebrew_numbers
 
 
 class reify:
@@ -91,7 +92,6 @@ class Decoder:
         self.gempfx = trees.Trie(
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
-        
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -112,6 +112,7 @@ class Decoder:
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
             else:
                 hebz.append(get_self_rep(chunk))
+                print(chunk)
         return hebz
 
     def get_rom(self, chunks):
@@ -202,7 +203,10 @@ class Word:
         try:
             word = coredecode(self.keys, rom)
         except KeyError:
-            return get_self_rep(self.word)
+            try:
+                word = fix_numerals(rom)
+            except ValueError:
+                word = get_self_rep(self.word)
         except IndexError:
             return
         if front:
@@ -294,6 +298,14 @@ def no_end(keys, word):
 
 def get_self_rep(string):
     return keygenerator.ReplacementList(string, [string])
+
+
+def fix_numerals(int_str):
+    if len(int_str) > 3:
+        return get_self_rep(int_str)
+    else:
+        heb = hebrew_numbers.int_to_gematria(int_str)
+        return keygenerator.ReplacementList(int_str, [heb, int_str])
 
 
 maqef = keygenerator.ReplacementList('-', ['־'])
