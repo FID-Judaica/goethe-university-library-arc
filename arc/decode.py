@@ -61,13 +61,13 @@ def junker(word):
     junk = []
     remainder = ''
     for i, char in enumerate(word):
-        if unicodedata.category(char)[0] == 'L':
+        if unicodedata.category(char)[0] == 'L' or char == "'":
             remainder = word[i:]
             break
         junk.append(char)
-        if junk[-1] == "'":
-            del junk[-1]
-            remainder = "'" + remainder
+        # if junk[-1] == "'":
+        #     del junk[-1]
+        #     remainder = "'" + remainder
 
     return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
 
@@ -105,14 +105,14 @@ class Decoder:
         hebz = []
         for chunk in chunks:
             if isinstance(chunk, list):
-                if len(chunk) >= 2:
+                if len(chunk) > 1:
                     he = chunk[-1].heb
                     if he.key == str(he[0]) and he.key != '':
                         chunk[-1].heb = get_self_rep('-' + str(he[0]))
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
+                # double_check_spelling(hebz[-1])
             else:
                 hebz.append(get_self_rep(chunk))
-                print(chunk)
         return hebz
 
     def get_rom(self, chunks):
@@ -122,7 +122,6 @@ class Decoder:
                 try:
                     romed.append('-'.join(i.word for i in chunk))
                 except AttributeError:
-                    print(chunks, file=2)
                     raise
             else:
                 romed.append(str(chunk))
@@ -243,7 +242,8 @@ def coredecode(keys, word):
         return get_self_rep(word)
     replist = _coredecode(keys, word)
     for i in replist:
-        if hspell.check_word(str(i)) and hspell.linginfo(str(i)):
+        _, core, _ = double_junker(str(i))
+        if hspell.check_word(core) and hspell.linginfo(core):
             i.weight -= 1000
     replist.prune()
     return replist
@@ -301,11 +301,29 @@ def get_self_rep(string):
 
 
 def fix_numerals(int_str):
-    if len(int_str) > 3:
+    length = len(int_str)
+    if length > 3:
         return get_self_rep(int_str)
     else:
         heb = hebrew_numbers.int_to_gematria(int_str)
-        return keygenerator.ReplacementList(int_str, [heb, int_str])
+        if length == 3:
+            return keygenerator.ReplacementList(int_str, [heb, int_str])
+        else:
+            return keygenerator.ReplacementList(int_str, [int_str, heb])
+
+
+def double_check_spelling(replist):
+    for rep in replist:
+        if rep.weight < 0:
+            _, core, _ = double_junker(str(rep))
+            try:
+                if not hspell.check_word(core):
+                    rep.weight += 1000
+            except UnicodeEncodeError:
+                pass
+        else:
+            break
+    replist.sort()
 
 
 maqef = keygenerator.ReplacementList('-', ['־'])
