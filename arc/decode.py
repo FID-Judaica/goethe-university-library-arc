@@ -55,13 +55,15 @@ class reify:
 #
 # Also note: leading and trailing non-transliteration characters are referred
 # to as "junk". Sorry.
-def junker(word):
+def junker(word, include_nums=False):
     '''remove non-character symbols from the front of a word. return a tuple
     containing the junk from the front, and the remainder of the word.'''
     junk = []
     remainder = ''
     for i, char in enumerate(word):
-        if unicodedata.category(char)[0] == 'L' or char == "'":
+        category = unicodedata.category(char)[0]
+        if category == 'L' or char == "'" or (
+                include_nums is True and category == 'N'):
             remainder = word[i:]
             break
         junk.append(char)
@@ -72,18 +74,19 @@ def junker(word):
     return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
 
 
-def double_junker(word):
+def double_junker(word, include_nums=False):
     '''strip non-character symbols off the front and back of a word. return a
     tuple with (extra stuff from the front, word, extra stuff from the back)'''
-    front_junk, remainder = junker(word)
-    back_junk, stripped_word = [i[::-1] for i in junker(remainder[::-1])]
+    front_junk, remainder = junker(word, include_nums)
+    back_junk, stripped_word = [
+        i[::-1] for i in junker(remainder[::-1], include_nums)]
     return front_junk, stripped_word, back_junk
 ###########################
 
 
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile):
+    def __init__(self, profile, fix_numerals=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joinedpfx = trees.Trie(
@@ -92,6 +95,7 @@ class Decoder:
         self.gempfx = trees.Trie(
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
+        self.num = fix_numerals
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -132,6 +136,7 @@ class Decoder:
         rawchuncks = [i.split('-') for i in cleanedline.split()]
         remixed = []
         newchunk = []
+        w_kwargs = {'keys': self.keys, 'fix_numerals': self.num}
         for chunk in rawchuncks:
             newchunk = []
             if chunk == ['', '']:
@@ -141,14 +146,14 @@ class Decoder:
                 if self.checkprefix(i, inner, chunk):
                     newchunk.append(Prefix(inner, self.keys))
                 else:
-                    newchunk.append(Word(inner, self.keys))
+                    newchunk.append(Word(inner, **w_kwargs))
                     remixed.extend([newchunk, [maqef]])
                     newchunk = []
             if newchunk:
-                newchunk.append(Word(chunk[-1], self.keys))
+                newchunk.append(Word(chunk[-1], **w_kwargs))
                 remixed.append(newchunk)
             else:
-                remixed.append([Word(chunk[-1], self.keys)])
+                remixed.append([Word(chunk[-1], **w_kwargs)])
         return remixed
 
     def checkprefix(self, i, inner, chunk):
@@ -191,10 +196,11 @@ class Decoder:
 
 
 class Word:
-    def __init__(self, word, keys):
+    def __init__(self, word, keys, fix_numerals=False):
         self.word = word
         self.junked = double_junker(word)
         self.keys = keys
+        self.num = fix_numerals
 
     @reify
     def heb(self):
@@ -202,10 +208,14 @@ class Word:
         try:
             word = coredecode(self.keys, rom)
         except KeyError:
-            try:
-                word = fix_numerals(rom)
-            except ValueError:
+            if self.num:
+                try:
+                        word = fix_numerals(rom)
+                except ValueError:
+                    word = get_self_rep(self.word)
+            else:
                 word = get_self_rep(self.word)
+
         except IndexError:
             return
         if front:
@@ -301,15 +311,18 @@ def get_self_rep(string):
 
 
 def fix_numerals(int_str):
-    length = len(int_str)
+    front, num, back = double_junker(int_str, include_nums=True)
+    length = len(num)
     if length > 3:
         return get_self_rep(int_str)
     else:
-        heb = hebrew_numbers.int_to_gematria(int_str)
+        heb = hebrew_numbers.int_to_gematria(num)
         if length == 3:
-            return keygenerator.ReplacementList(int_str, [heb, int_str])
+            return keygenerator.ReplacementList(
+                int_str, [front+heb+back, int_str])
         else:
-            return keygenerator.ReplacementList(int_str, [int_str, heb])
+            return keygenerator.ReplacementList(
+                int_str, [int_str, front+heb+back])
 
 
 def double_check_spelling(replist):

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import sys
 from pathlib import Path
-from arc import decode
+import arc
 import yaml
 CONFIG_FILE = Path(__file__).parent/'data'/'old.yml'
-decoder = decode.Decoder(yaml.safe_load(CONFIG_FILE.open()))
+decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
 
 
 def main():
