@@ -56,14 +56,15 @@ class reify:
 # Also note: leading and trailing non-transliteration characters are referred
 # to as "junk". Sorry.
 def junker(word, include_nums=False):
-    '''remove non-character symbols from the front of a word. return a tuple
-    containing the junk from the front, and the remainder of the word.'''
+    """remove non-character symbols from the front of a word. return a tuple
+    containing the junk from the front, and the remainder of the word.
+    """
     junk = []
     remainder = ''
     for i, char in enumerate(word):
         category = unicodedata.category(char)[0]
         if category == 'L' or char == "'" or (
-                include_nums is True and category == 'N'):
+                include_nums and category == 'N'):
             remainder = word[i:]
             break
         junk.append(char)
@@ -75,8 +76,9 @@ def junker(word, include_nums=False):
 
 
 def double_junker(word, include_nums=False):
-    '''strip non-character symbols off the front and back of a word. return a
-    tuple with (extra stuff from the front, word, extra stuff from the back)'''
+    """strip non-character symbols off the front and back of a word. return a
+    tuple with (extra stuff from the front, word, extra stuff from the back)
+    """
     front_junk, remainder = junker(word, include_nums)
     back_junk, stripped_word = [
         i[::-1] for i in junker(remainder[::-1], include_nums)]
@@ -86,16 +88,16 @@ def double_junker(word, include_nums=False):
 
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile, fix_numerals=False):
+    def __init__(self, profile, fix_nums=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
-        self.joinedpfx = trees.Trie(
+        self.joined_prefix = trees.Trie(
             {i: i for i in profile['joined_prefixes']})
-        self.pfxvowels = set(profile['prefix_vowels']) | {''}
-        self.gempfx = trees.Trie(
+        self.prefix_vowels = set(profile['prefix_vowels']) | {''}
+        self.gem_prefix = trees.Trie(
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
-        self.num = fix_numerals
+        self.num = fix_nums
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -131,27 +133,26 @@ class Decoder:
                 romed.append(str(chunk))
         return romed
 
-    def makechunks(self, line):
-        cleanedline = self.cleanline(line)
-        rawchuncks = [i.split('-') for i in cleanedline.split()]
+    def make_chunks(self, line: str):
+        cleaned_line = self.cleanline(line)
+        raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = []
-        newchunk = []
         w_kwargs = {'keys': self.keys, 'fix_numerals': self.num}
-        for chunk in rawchuncks:
-            newchunk = []
+        for chunk in raw_chunks:
+            new_chunk = []
             if chunk == ['', '']:
                 remixed.append('-')
                 continue
             for i, inner in enumerate(chunk[:-1]):
                 if self.checkprefix(i, inner, chunk):
-                    newchunk.append(Prefix(inner, self.keys))
+                    new_chunk.append(Prefix(inner, self.keys))
                 else:
-                    newchunk.append(Word(inner, **w_kwargs))
-                    remixed.extend([newchunk, [maqef]])
-                    newchunk = []
-            if newchunk:
-                newchunk.append(Word(chunk[-1], **w_kwargs))
-                remixed.append(newchunk)
+                    new_chunk.append(Word(inner, **w_kwargs))
+                    remixed.extend([new_chunk, [maqef]])
+                    new_chunk = []
+            if new_chunk:
+                new_chunk.append(Word(chunk[-1], **w_kwargs))
+                remixed.append(new_chunk)
             else:
                 remixed.append([Word(chunk[-1], **w_kwargs)])
         return remixed
@@ -159,10 +160,10 @@ class Decoder:
     def checkprefix(self, i, inner, chunk):
         front, part, back = double_junker(inner)
         try:
-            beginning, end = self.joinedpfx.getpart(part)
-            if end in self.pfxvowels:
+            beginning, end = self.joined_prefix.getpart(part)
+            if end in self.prefix_vowels:
                 return True
-            beginning, end = self.gempfx.getpart(part)
+            beginning, end = self.gem_prefix.getpart(part)
             _, nextp, _ = double_junker(chunk[i+1])
             if nextp.startswith(end):
                 return True
