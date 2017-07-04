@@ -88,7 +88,7 @@ def double_junker(word, include_nums=False):
 
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile, fix_nums=False):
+    def __init__(self, profile, fix_numerals=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
@@ -97,14 +97,14 @@ class Decoder:
         self.gem_prefix = trees.Trie(
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
-        self.num = fix_nums
+        self.num = fix_numerals
 
     def __getitem__(self, key):
         return self.profile[key]
 
     def decode(self, line):
         """Return a list of Word instances from a given line of input."""
-        chunks = self.makechunks(line)
+        chunks = self.make_chunks(line)
         return self.get_heb(chunks)
 
     def get_heb(self, chunks):
@@ -113,8 +113,10 @@ class Decoder:
             if isinstance(chunk, list):
                 if len(chunk) > 1:
                     he = chunk[-1].heb
-                    if he.key == str(he[0]) and he.key != '':
-                        chunk[-1].heb = get_self_rep('-' + str(he[0]))
+                    for i in range(len(he)):
+                        if he.key == str(he[i]) and he.key != '':
+                            he.keyparts = ('-', he.key)
+                            he.key = '-' + str(he.key)
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
                 # double_check_spelling(hebz[-1])
             else:
@@ -193,6 +195,9 @@ class Decoder:
             line = re.sub(r' -(\w)', r'-\1', line)
         if line.startswith('ha'):
             line = re.sub('^ha\w{0,2}- *@', 'h @', line)
+
+        line = re.sub(r'\b([bl])([î]-|-[iî])', r'\1-yĕ', line)
+
         return line
 
 
@@ -211,7 +216,7 @@ class Word:
         except KeyError:
             if self.num:
                 try:
-                        word = fix_numerals(rom)
+                    word = fix_numerals(rom)
                 except ValueError:
                     word = get_self_rep(self.word)
             else:
