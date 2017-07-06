@@ -117,6 +117,8 @@ class Decoder:
                         if he.key == str(he[i]) and he.key != '':
                             he.keyparts = ('-', he.key)
                             he.key = '-' + str(he.key)
+                            he[i] = deromanize.Replacement(
+                                    he[i].weight, ('-', str(he[i])))
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
                 # double_check_spelling(hebz[-1])
             else:
@@ -196,7 +198,7 @@ class Decoder:
         if line.startswith('ha'):
             line = re.sub('^ha\w{0,2}- *@', 'h @', line)
 
-        line = re.sub(r'\b([bl])([î]-|-[iî])', r'\1-yĕ', line)
+        line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1-yĕ', line)
 
         return line
 
@@ -259,7 +261,8 @@ def coredecode(keys, word):
     replist = _coredecode(keys, word)
     for i in replist:
         _, core, _ = double_junker(str(i))
-        if hspell.check_word(core) and hspell.linginfo(core):
+        checkable = core.replace('״', '"')
+        if hspell.check_word(checkable) and hspell.linginfo(checkable):
             i.weight -= 1000
     replist.prune()
     return replist
