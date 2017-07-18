@@ -16,6 +16,7 @@ def main():
             print(*map(repr, word.keyparts), sep='\t')
             for w in word:
                 print(*map(repr, w.value), sep='\t')
+                # print(hash(w.keyvalue))
         print()
 
 
