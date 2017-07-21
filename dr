@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import arc
 import yaml
-CONFIG_FILE = Path(__file__).parent/'data'/'old.yml'
+CONFIG_FILE = Path(__file__).parent/'data'/'new.yml'
 decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
 
 
@@ -16,7 +16,6 @@ def main():
             print(*map(repr, word.keyparts), sep='\t')
             for w in word:
                 print(*map(repr, w.value), sep='\t')
-                # print(hash(w.keyvalue))
         print()
 
 

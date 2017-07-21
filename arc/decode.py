@@ -26,7 +26,7 @@ import hebrew_numbers
 
 
 class reify:
-    """ Use as a class method decorator.  It operates almost exactly like the
+    """Use as a class method decorator.  It operates almost exactly like the
     Python ``@property`` decorator, but it puts the result of the method it
     decorates into the instance dict after the first call, effectively
     replacing the function it decorates with an instance variable.  It is, in
@@ -243,7 +243,7 @@ class Prefix(Word):
         if rom in u:
             word = keygenerator.ReplacementList(rom, ['ו'])
         else:
-            word = self.keys['front'][rom[0]]
+            word, _ = self.keys['front'].getpart(rom)
 
         if front:
             word = get_self_rep(front) + word
