@@ -1,21 +1,69 @@
 #!/usr/bin/env python3
 import sys
-from pathlib import Path
-import arc
+import argparse
 import yaml
-CONFIG_FILE = Path(__file__).parent/'data'/'new.yml'
+import unicodedata
+import arc
+from pathlib import Path
+CONFIG_FILE = Path(__file__).parent/'data'/'old.yml'
+VOWELS = set('ieaou')
 decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
+
+set_reps = {tuple(v): k for k, v in decoder.profile['to_new']['sets'].items()}
+simple_reps = decoder.profile['to_new']['replacements']
+
+
+def flatten_vowels(letterpairs):
+    for rom, heb in letterpairs:
+        new = ''
+        for c in rom:
+            decomposed = unicodedata.normalize('NFD', c)
+            if decomposed[0] in VOWELS:
+                new += decomposed[0]
+            else:
+                new += c
+        yield (new, heb)
+
+
+def replace_things(letterpairs):
+    for pair in letterpairs:
+        if pair in set_reps:
+            yield set_reps[pair]
+        else:
+            rom = pair[0]
+            for k, v in simple_reps.items():
+                rom = rom.replace(k, v)
+            yield rom
+
+
+def get_new(rep):
+    flat_vowels = flatten_vowels(rep.keyvalue)
+    new = ''.join(replace_things(flat_vowels))
+    if new[-1] == 'ʾ':
+        return new[:-1]
+    else:
+        return new
 
 
 def main():
+    ap = argparse.ArgumentParser(description='show some Hebrew things')
+    add = ap.add_argument
+    add('--reverse-heb', '-r', action='store_true')
+    add('--show-new', '-n', action='store_true')
+    add('--show-weight', '-w', action='store_true')
+    args = ap.parse_args()
     for t in map(str.rstrip, sys.stdin):
         print(t)
         for word in decoder.decode(t):
             word.prune()
-            print(word)
-            print(*map(repr, word.keyparts), sep='\t')
             for w in word:
-                print(*map(repr, w.value), sep='\t')
+                items = []
+                if args.show_weight:
+                    items.append(w.weight)
+                items.append(str(w)[::-1] if args.reverse_heb else w)
+                if args.show_new:
+                    items.append(get_new(w))
+                print(*items, sep='\t')
         print()
 
 
