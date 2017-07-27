@@ -198,7 +198,7 @@ class Decoder:
         if line.startswith('ha'):
             line = re.sub('^ha\w{0,2}- *@', 'h @', line)
 
-        line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1-yĕ', line)
+        line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
 
         return line
 
@@ -240,10 +240,12 @@ class Prefix(Word):
     @reify
     def heb(self):
         front, rom, back = self.junked
-        if rom in u:
-            word = keygenerator.ReplacementList(rom, ['ו'])
-        else:
-            word, _ = self.keys['front'].getpart(rom)
+        # if rom in u:
+        #     word = keygenerator.ReplacementList(rom, ['ו'])
+        # else:
+        word, _ = self.keys['front'].getpart(rom)
+        for w in word:
+            w.keyvalue = ((rom, str(w)), ('-', ''))
 
         if front:
             word = get_self_rep(front) + word

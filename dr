@@ -39,33 +39,53 @@ def replace_things(letterpairs):
 def get_new(rep):
     flat_vowels = flatten_vowels(rep.keyvalue)
     new = ''.join(replace_things(flat_vowels))
+    if new[0] == 'ʾ':
+        new = new[1:]
     if new[-1] == 'ʾ':
-        return new[:-1]
+        new = new[:-1]
+    new = new.replace('-ʾ', '-')
+    return new
+
+
+def expand_kv(key, value):
+    lk, lv = len(key), len(value)
+    if lk > lv:
+        value = value + ' ' * (lk-lv)
     else:
-        return new
+        key = key + ' ' * (lv-lk)
+    return key, value
 
 
 def main():
     ap = argparse.ArgumentParser(description='show some Hebrew things')
     add = ap.add_argument
-    add('--reverse-heb', '-r', action='store_true')
-    add('--show-new', '-n', action='store_true')
-    add('--show-weight', '-w', action='store_true')
+    add('--reverse-heb', '-r', action='store_true',
+        help='reverse output for terminal')
+    add('--show-new', '-n', action='store_true',
+        help='Show the corrected from of the word with LoC transliteration')
+    add('--debug', '-d', action='store_true', help='show debugging info')
+    add('--crop', '-c', type=int, default=0)
+    add('--sep', '-s', default='│')
     args = ap.parse_args()
     for t in map(str.rstrip, sys.stdin):
         print(t)
         for word in decoder.decode(t):
             word.prune()
-            for w in word:
+            for i, w in enumerate(word):
+                if args.crop and args.crop == i:
+                    break
                 items = []
-                if args.show_weight:
-                    items.append(w.weight)
                 items.append(str(w)[::-1] if args.reverse_heb else w)
                 if args.show_new:
                     items.append(get_new(w))
+                if args.debug:
+                    items.append(w.weight)
                 print(*items, sep='\t')
+                if args.debug:
+                    atoms = [expand_kv(k, v) for k, v in w.keyvalue]
+                    print('  ' + args.sep.join(rom for rom, _ in atoms))
+                    print('  ' + args.sep.join(heb for _, heb in atoms) + '\n')
         print()
-
 
 if __name__ == '__main__':
     main()

@@ -172,8 +172,8 @@ final errors:
 
 # The data structures below are not for use by keygenerators, but for
 # the final decoder.
-gem_prefixes: [ha, mi, ba, ka, la, še, wa]
-joined_prefixes: hmbvklšwûū
+gem_prefixes: [ha, mi, ba, va, ka, la, še, wa]
+joined_prefixes: hmbvklšwûūu
 prefix_vowels: ĕieaioēā
 
 to_new:
