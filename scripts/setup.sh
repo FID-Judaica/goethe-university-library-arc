@@ -8,7 +8,9 @@ proj=fid-judaica
 repos=( "deromanize" "pica_parse.py" "filtermaker" )
 
 for repo in "${repos[@]}"; do
-  git clone "https://github.com/$proj/$repo"
+  if [[ ! -e $repo ]]; then
+    git clone "https://github.com/$proj/$repo"
+  fi
   pip install -e $repo
 done
 

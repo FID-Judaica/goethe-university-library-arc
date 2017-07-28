@@ -1,15 +1,15 @@
-#!/usr/bin/env bash
-
-script_path="$PWD/${0#./}"
-proj_dir="${script_path%/*/*}"
-cd "$proj_dir"
+#!/bin/sh
 
 repos=( "deromanize" "pica_parse.py" "filtermaker" )
 
+printf "\e[31mStatus of Subrepos\e[0m\n"
+
 for repo in "${repos[@]}"; do
-  printf "$repo\n"
-  pushd "$repo"
-  git status -s
-  printf "\n---------------\n\n"
-  popd
+  printf "\e[34m__________________\e[0m\n"
+  printf "\e[33m$repo\e[0m\n"
+  pushd "$repo" > /dev/null
+  git status
+  popd > /dev/null
 done
+
+printf "\e[31m__________________\e[0m\n\n"

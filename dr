@@ -2,43 +2,19 @@
 import sys
 import argparse
 import yaml
-import unicodedata
 import arc
 from pathlib import Path
+from deromanize import caching
 CONFIG_FILE = Path(__file__).parent/'data'/'old.yml'
-VOWELS = set('ieaou')
 decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
-
-set_reps = {tuple(v): k for k, v in decoder.profile['to_new']['sets'].items()}
+set_reps = decoder.profile['to_new']['sets']
 simple_reps = decoder.profile['to_new']['replacements']
-
-
-def flatten_vowels(letterpairs):
-    for rom, heb in letterpairs:
-        new = ''
-        for c in rom:
-            decomposed = unicodedata.normalize('NFD', c)
-            if decomposed[0] in VOWELS:
-                new += decomposed[0]
-            else:
-                new += c
-        yield (new, heb)
-
-
-def replace_things(letterpairs):
-    for pair in letterpairs:
-        if pair in set_reps:
-            yield set_reps[pair]
-        else:
-            rom = pair[0]
-            for k, v in simple_reps.items():
-                rom = rom.replace(k, v)
-            yield rom
+replace = caching.replacer_maker(simple_reps, set_reps)
 
 
 def get_new(rep):
-    flat_vowels = flatten_vowels(rep.keyvalue)
-    new = ''.join(replace_things(flat_vowels))
+    flat_vowels = caching.strip_chars(rep.keyvalue)
+    new = ''.join((i[0] for i in replace(flat_vowels)))
     if new[0] == 'ʾ':
         new = new[1:]
     if new[-1] == 'ʾ':
