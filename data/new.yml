@@ -3,6 +3,7 @@ keys:
     - consonants
     - vowels
     - other
+    - consonant errors: 15
 
   mid:
     - clusters
@@ -13,7 +14,9 @@ keys:
     - beginning patterns
 
   end:
-    groups: final
+    groups:
+      - final
+      - final errors: 10
     suffix: true
 
   cc: cc
@@ -54,14 +57,14 @@ consonants:
   t: ת
 
 vowels:
-  i: י
+  i: [י, '']
   e: ['', [3, י]]
   a: ''
   o: [ו, [5, '']]
   u: ו
 
 other:
-  "'": "'"
+  "'": [א, ע, '']
 
 clusters:
   "k'h": כה
@@ -73,17 +76,24 @@ clusters:
   uy: וי
   yo: יו
   oy: וי
-  iy: יי
-  yi: יי
+  iy: [יי, י]
+  yi: [יי, י]
   ayi: [י, יי]
   ʾa: א
   aʾ: א
 
 infrequent:
+  u: ''
   i: א
   e: א
   a: א
   o: א
+
+consonant errors:
+  t: ט
+  ʾ: ע
+  v: [וו, ו]
+  k: ק
 
 cc:
   CC: \1\2
@@ -100,7 +110,7 @@ final:
   i: [י, יא]
   o: [ו, וא, א]
   oh: [ה, וה]
-  u: ו
+  u: [ו, וא]
   im: ים
   enu: ינו
   ayim: [יים, ים]
@@ -109,11 +119,19 @@ final:
   eha: יה
   ah: ה
   eh: ה
+  e: [י, א]
+
+final errors:
+  e: ה
+  ah: ה
+  av: [יו, ו]
+  v: ו
+  k: ק
 
 beginning:
   y: י
   yi: [י, יי]
-  ṿ: ו
+  ṿ: [ו, וו]
 
 beginning patterns:
   Fi2C: [\1\2, \1י\2]
