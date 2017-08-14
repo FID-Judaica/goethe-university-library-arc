@@ -212,27 +212,45 @@ def main():
     props = required | forbidden
 
     test = tester_maker(args.expression)
+    for ppn, rec in pica_parse.file2dicts(sys.stdin):
+        try:
+            title = pica_parse.PicaField('021A', rec['021A'][0], 'ƒ')
+        except KeyError:
+            continue
 
-    if args.pica:
-        for record in pica_parse.file2records(sys.stdin):
-            d = {'ppn': record.ppn}
-            heb = {}
-            for field in record:
-                if field.id in d:
-                    if field.get('U') == 'Hebr':
-                        del field.dict['U']
-                        heb[field.id] = {k: v[0] for k, v
-                                         in field.dict.items()}
-                    else:
-                        continue
+        if 'a' not in title:
+            continue
+
+        if test(Line(title['a'][0], *props), required, forbidden):
+            if 'd' in title:
+                if test(Line(title['d'][0], *props), required, forbidden):
+                    print(ppn)
                 else:
-                    for k, sub in field.items():
-                        if test(Line(sub, *props), required, forbidden):
-                            d.setdefault(field.id, {})[k] = sub
+                    continue
+            else:
+                print(ppn)
 
-            if len(d) > 1:
-                print(json.dumps(d, ensure_ascii=False))
-    else:
-        for line in (Line(l.rstrip(), *props) for l in sys.stdin):
-            if test(line, required, forbidden):
-                print(line)
+
+    # if args.pica:
+    #     for record in pica_parse.file2records(sys.stdin):
+    #         d = {'ppn': record.ppn}
+    #         heb = {}
+    #         for field in record:
+    #             if field.id in d:
+    #                 if field.get('U') == 'Hebr':
+    #                     del field.dict['U']
+    #                     heb[field.id] = {k: v[0] for k, v
+    #                                      in field.dict.items()}
+    #                 else:
+    #                     continue
+    #             else:
+    #                 for k, sub in field.items():
+    #                     if test(Line(sub, *props), required, forbidden):
+    #                         d.setdefault(field.id, {})[k] = sub
+
+    #         if len(d) > 1:
+    #             print(json.dumps(d, ensure_ascii=False))
+    # else:
+    #     for line in (Line(l.rstrip(), *props) for l in sys.stdin):
+    #         if test(line, required, forbidden):
+    #             print(line)

@@ -5,11 +5,11 @@ import yaml
 import arc
 from pathlib import Path
 from deromanize import caching
-CONFIG_FILE = Path(__file__).parent/'data'/'old.yml'
+CONFIG_FILE = Path(__file__).parent/'data'/'new.yml'
 decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
-set_reps = decoder.profile['to_new']['sets']
-simple_reps = decoder.profile['to_new']['replacements']
-replace = caching.replacer_maker(simple_reps, set_reps)
+# set_reps = decoder.profile['to_new']['sets']
+# simple_reps = decoder.profile['to_new']['replacements']
+# replace = caching.replacer_maker(simple_reps, set_reps)
 
 
 def get_new(rep):
@@ -40,6 +40,7 @@ def main():
     add('--show-new', '-n', action='store_true',
         help='Show the corrected from of the word with LoC transliteration')
     add('--debug', '-d', action='store_true', help='show debugging info')
+    add('--numbers', '-N', action='store_true', help='show "secret" numbers')
     add('--crop', '-c', type=int, default=0)
     add('--sep', '-s', default='│')
     args = ap.parse_args()
@@ -54,7 +55,7 @@ def main():
                 items.append(str(w)[::-1] if args.reverse_heb else w)
                 if args.show_new:
                     items.append(get_new(w))
-                if args.debug:
+                if args.numbers:
                     items.append(w.weight)
                 print(*items, sep='\t')
                 if args.debug:

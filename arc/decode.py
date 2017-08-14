@@ -333,15 +333,18 @@ def fix_numerals(int_str):
     front, num, back = double_junker(int_str, include_nums=True)
     length = len(num)
     if length > 3:
-        return get_self_rep(int_str)
-    else:
-        heb = hebrew_numbers.int_to_gematria(num)
-        if length == 3:
-            return keygenerator.ReplacementList(
-                int_str, [front+heb+back, int_str])
+        if num[0] == '5':
+            num = num[1:]
         else:
-            return keygenerator.ReplacementList(
-                int_str, [int_str, front+heb+back])
+            return get_self_rep(int_str)
+
+    heb = hebrew_numbers.int_to_gematria(num)
+    if length >= 3:
+        return keygenerator.ReplacementList(
+            int_str, [front+heb+back, int_str])
+    else:
+        return keygenerator.ReplacementList(
+            int_str, [int_str, front+heb+back])
 
 
 def double_check_spelling(replist):
