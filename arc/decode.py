@@ -117,8 +117,12 @@ class Decoder:
                         if he.key == str(he[i]) and he.key != '':
                             he.keyparts = ('-', he.key)
                             he.key = '-' + str(he.key)
-                            he[i] = deromanize.Replacement(
-                                    he[i].weight, ('-', str(he[i])))
+                            he[i] = (
+                                deromanize.Replacement(0, '-', '')
+                                +
+                                deromanize.Replacement(
+                                    he[i].weight,  str(he[i]), str(he[i]))
+                            )
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
                 # double_check_spelling(hebz[-1])
             else:
@@ -243,9 +247,13 @@ class Prefix(Word):
         # if rom in u:
         #     word = keygenerator.ReplacementList(rom, ['ו'])
         # else:
-        word, _ = self.keys['front'].getpart(rom)
-        for w in word:
-            w.keyvalue = ((rom, str(w)), ('-', ''))
+        word, remainder = self.keys['front'].getpart(rom)
+        # work on a copy because we're going to modify the object's state
+        word = word.copy()
+        rep = deromanize.Replacement
+        for i, w in enumerate(word):
+            key = word.key + remainder[0:1]
+            word[i] = rep(w.weight, str(w), key) + rep(0, '', '-')
 
         if front:
             word = get_self_rep(front) + word
