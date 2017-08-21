@@ -251,9 +251,9 @@ class Prefix(Word):
         # work on a copy because we're going to modify the object's state
         word = word.copy()
         rep = deromanize.Replacement
-        for i, w in enumerate(word):
-            key = word.key + remainder[0:1]
-            word[i] = rep(w.weight, str(w), key) + rep(0, '', '-')
+        key = word.key + remainder[0:1]
+        w = word[0]
+        word.data = [rep(w.weight, str(w), key) + rep(0, '', '-')]
 
         if front:
             word = get_self_rep(front) + word

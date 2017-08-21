@@ -58,9 +58,9 @@ consonants:
 
 vowels:
   i: [י, '']
-  e: ['', [3, י]]
+  e: ['', י]
   a: ''
-  o: [ו, [5, '']]
+  o: [ו, [3, '']]
   u: ו
 
 other:
@@ -111,8 +111,6 @@ final:
   o: [ו, וא, א]
   oh: [ה, וה]
   u: [ו, וא]
-  im: ים
-  enu: ינו
   ayim: [יים, ים]
   aṿ: [יו, ו]
   yah: יה
@@ -123,7 +121,7 @@ final:
 
 final errors:
   e: ה
-  ah: ה
+  a: ה
   av: [יו, ו]
   v: ו
   k: ק
@@ -135,13 +133,6 @@ beginning:
 
 beginning patterns:
   Fi2C: [\1\2, \1י\2]
-  Fo2C: [\1ו\2, \1\2]
-  Fe2C: [\1\2]
-
-flattened:
-  v: b
-  ḵ: k
-  f: p
 
 broken_clusters:
   kh: "k'h"
@@ -153,3 +144,24 @@ broken_clusters:
 gem_prefixes: [ha, mi, ba, ka, la, she, ṿa]
 joined_prefixes: [h, m, b, v, k, l, sh, ṿ, u]
 prefix_vowels: eiao
+
+to_new:
+  replacements: {}
+
+  sets:
+    kh: [k, ך]
+    kha: [ka, ך] 
+    ḳ: [k, ק]
+    kah: ka, כה
+    khah: kha, כה
+    ʾ: ['', א]
+    ʾ: ["'", א]
+    ʿ: ['', ע]
+    ʿ: ["'", ע]
+    "": ["'", ""]
+    ah: [a, ה]
+    eh: [e, ה]
+    oh: [o, ה]
+    yah: [ya, יה]
+    ś: [s, ש]
+    ṭ: [t, ט]

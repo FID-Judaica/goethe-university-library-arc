@@ -7,9 +7,9 @@ from pathlib import Path
 from deromanize import caching
 CONFIG_FILE = Path(__file__).parent/'data'/'new.yml'
 decoder = arc.Decoder(yaml.safe_load(CONFIG_FILE.open()), fix_numerals=True)
-# set_reps = decoder.profile['to_new']['sets']
-# simple_reps = decoder.profile['to_new']['replacements']
-# replace = caching.replacer_maker(simple_reps, set_reps)
+set_reps = decoder.profile['to_new']['sets']
+simple_reps = decoder.profile['to_new']['replacements']
+replace = caching.replacer_maker(simple_reps, set_reps)
 
 
 def get_new(rep):
