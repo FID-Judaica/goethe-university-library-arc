@@ -1,5 +1,6 @@
 from deromanize import cacheutils
 import unicodedata
+import arc.decode
 VOWELS = set('ieaou')
 gstops = {'ʿ', 'ʾ'}
 
@@ -36,3 +37,22 @@ def loc2phon(loc):
     for v in VOWELS:
         phon = phon.replace(v+v, v+"'"+v)
     return phon
+
+
+def remove_prefixes(pairs):
+    new = []
+    for heb, loc in pairs:
+        _, heb, _ = arc.decode.double_junker(heb)
+        _, loc, _ = arc.decode.double_junker(loc)
+        romlist = loc.split('-')
+        newheb = heb[len(romlist)-1:]
+        # if len(romlist) > 1:
+        #     print(romlist[-1], newheb)
+        loc = romlist[-1]
+        if len(loc) > 1:
+            if loc[0] == 'ʾ':
+                loc = loc[1:]
+            if loc[-1] == 'ʾ':
+                loc = loc[-1]
+        new.append([newheb, loc])
+    return new
