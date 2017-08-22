@@ -1,11 +1,15 @@
-from deromanize import cacheutils
+import re
 import unicodedata
 import arc.decode
-VOWELS = set('ieaou')
-gstops = {'ʿ', 'ʾ'}
+from deromanize import cacheutils
+CacheObject, CacheDB = cacheutils.CacheObject, cacheutils.CacheDB
 
 
-def loc_coverter_factory(simple_reps, set_reps):
+class FieldError(Exception):
+    pass
+
+
+def loc_converter_factory(simple_reps, set_reps):
     replace = cacheutils.replacer_maker(simple_reps, set_reps)
 
     def get_loc(rep):
@@ -27,14 +31,16 @@ def loc_coverter_factory(simple_reps, set_reps):
 
 
 def loc2phon(loc):
+    vowels = set('ieaou')
+    gstops = {'ʿ', 'ʾ'}
     phon = loc.replace('ḥ', 'ch').replace('kh', 'ch')
-    if phon[-1] == 'h' and phon[-2:-1] in VOWELS:
+    if phon[-1] == 'h' and phon[-2:-1] in vowels:
         phon = phon[:-1]
     phon = ''.join(
         c for c in unicodedata.normalize('NFD', phon)
         if unicodedata.category(c)[0] == 'L' and c not in gstops
     )
-    for v in VOWELS:
+    for v in vowels:
         phon = phon.replace(v+v, v+"'"+v)
     return phon
 
@@ -56,3 +62,39 @@ def remove_prefixes(pairs):
                 loc = loc[-1]
         new.append([newheb, loc])
     return new
+
+
+def matcher_factory(simple_reps, set_reps):
+    get_loc = loc_converter_factory(simple_reps, set_reps)
+    nocheck = {'־', 'h', 'ה', '-', '։', ';'}
+
+    def match_output(generated, submitted):
+        breaks = re.compile('[\s־]+')
+        submittedl = [i for i in breaks.split(submitted) if i not in nocheck]
+        generatedl = [i for i in generated if i.key not in nocheck]
+        if len(submittedl) != len(generatedl):
+            raise FieldError("number of fields didn't match")
+        else:
+            matches = []
+            for gen, sub in zip(generatedl, submittedl):
+                for rep in gen:
+                    if str(rep) == sub:
+                        matches.append((sub, get_loc(rep)))
+                        break
+
+            return matches
+
+    return match_output
+
+
+def form_builder_factory(simple_reps, set_reps):
+    match_output = matcher_factory(simple_reps, set_reps)
+
+    def form_builder(decoded, submitted):
+        matches = match_output(decoded, submitted)
+        matches = remove_prefixes(matches)
+        for m in matches:
+            m.append(loc2phon(m[1]))
+        return matches
+
+    return form_builder

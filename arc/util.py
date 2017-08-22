@@ -43,7 +43,7 @@ def main():
     set_reps = decoder.profile['to_new']['sets']
     simple_reps = decoder.profile['to_new']['replacements']
     global replace
-    get_loc = cacheutils.loc_coverter_factory(simple_reps, set_reps)
+    get_loc = cacheutils.loc_converter_factory(simple_reps, set_reps)
 
     for t in map(str.rstrip, sys.stdin):
         print(t)

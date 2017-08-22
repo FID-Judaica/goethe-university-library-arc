@@ -86,6 +86,20 @@ class ArcDB(pica_parse.db.PicaDB):
             self.con.executemany('INSERT INTO changes VALUES(?, ?, ?)',
                                  ((ppn, *w) for w in badwords))
 
+    def get_title(self, ppn):
+        fields = self[ppn, '021A']
+        for field in fields:
+            lang = field.get('U')
+            if lang is None or lang == 'Latn':
+                maintitle = field.get('a')
+                break
+        subtitle = field.get('d')
+        if subtitle:
+            title = maintitle + ' ։ ' + subtitle
+        else:
+            title = maintitle
+        return title
+
 
 def diff_output(generated, submitted):
     errors = 0
