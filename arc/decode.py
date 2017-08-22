@@ -142,7 +142,7 @@ class Decoder:
         return romed
 
     def make_chunks(self, line: str):
-        cleaned_line = self.cleanline(line)
+        cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = []
         w_kwargs = {'keys': self.keys, 'fix_numerals': self.num}
@@ -180,31 +180,32 @@ class Decoder:
         except KeyError:
             return False
 
-    def cleanline(self, line):
-        line = line.lower()
 
-        if line[0] == '@':
-            line = line[1:]
+def cleanline(line):
+    line = line.lower()
 
-        # # bracket shenanigans # #
-        rebracket = False
-        if line[0] == '[' and line[-1] == ']' and ']' not in line[:-1]:
-            line = line[1:-1]
-            rebracket = True
-        if '[' in line:
-            line = re.sub(r'\[.*?\]', '', line)
-        if rebracket:
-            line = '[' + line + ']'
-        if '- ' in line:
-            line = re.sub(r'(\w)- +([^@])', r'\1-\2', line)
-        if ' -' in line:
-            line = re.sub(r' -(\w)', r'-\1', line)
-        if line.startswith('ha'):
-            line = re.sub('^ha\w{0,2}- *@', 'h @', line)
+    if line[0] == '@':
+        line = line[1:]
 
-        line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
+    # # bracket shenanigans # #
+    rebracket = False
+    if line[0] == '[' and line[-1] == ']' and ']' not in line[:-1]:
+        line = line[1:-1]
+        rebracket = True
+    if '[' in line:
+        line = re.sub(r'\[.*?\]', '', line)
+    if rebracket:
+        line = '[' + line + ']'
+    if '- ' in line:
+        line = re.sub(r'(\w)- +([^@])', r'\1-\2', line)
+    if ' -' in line:
+        line = re.sub(r' -(\w)', r'-\1', line)
+    if line.startswith('ha'):
+        line = re.sub('^ha\w{0,2}- *@', 'h @', line)
 
-        return line
+    line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
+
+    return line
 
 
 class Word:

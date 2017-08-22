@@ -12,7 +12,8 @@ setup(
     long_description=open('README.rst').read(),
     packages=['arc'],
     entry_points={'console_scripts': [
-        'fl=arc.filters:main']},
+        'fl=arc.filters:main',
+        'derom=arc.util:main']},
     install_requires=[
         'pica_parse',
         'filtermaker',
