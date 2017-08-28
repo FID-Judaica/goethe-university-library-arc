@@ -27,6 +27,16 @@ class FieldError(Exception):
     pass
 
 
+class NoMatch(Exception):
+    def __init__(self, replist, heb):
+        self.replist = replist
+        self.heb = heb
+
+    def __str__(self):
+        return "{!r} couldn't be deromanized to match {!r}". \
+            format(self.replist.key, self.heb)
+
+
 def loc_converter_factory(simple_reps, set_reps):
     replace = cacheutils.replacer_maker(simple_reps, set_reps)
 
@@ -49,7 +59,7 @@ def loc_converter_factory(simple_reps, set_reps):
 
 
 def loc2phon(loc):
-    vowels = set('ieaou')
+    vowels = 'ieaou'
     gstops = {'ʿ', 'ʾ'}
     phon = loc.replace('ḥ', 'ch').replace('kh', 'ch')
     if phon[-1] == 'h' and phon[-2:-1] in vowels:
@@ -99,6 +109,8 @@ def matcher_factory(simple_reps, set_reps):
                     if str(rep) == sub:
                         matches.append((sub, get_loc(rep)))
                         break
+                else:
+                    raise NoMatch(gen, sub)
 
             return matches
 
