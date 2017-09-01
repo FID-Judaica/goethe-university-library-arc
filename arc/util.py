@@ -49,6 +49,7 @@ def main():
         print(t)
         for word in decoder.decode(t):
             word.prune()
+            word.makestat()
             for i, w in enumerate(word):
                 if args.crop and args.crop == i:
                     break

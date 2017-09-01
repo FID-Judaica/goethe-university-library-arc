@@ -35,7 +35,7 @@ class ArcDB(pica_parse.db.PicaDB):
         """database queries for pica records.
 
         - connection: an sqlit3 database. The schema for the records is
-          assigned to the value of the variable `scheme` near the top of
+          assigned to the values of the variable `scheme` near the top of
           the file.
 
         - sep is the character used to separate subfields in the records.

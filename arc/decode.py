@@ -273,8 +273,8 @@ def coredecode(keys, word):
     for i in replist:
         _, core, _ = double_junker(str(i))
         checkable = core.replace('״', '"').replace('׳', "'")
-        if hspell.check_word(checkable) and hspell.linginfo(checkable):
-            i.weight -= 1000
+        if not (hspell.check_word(checkable) and hspell.linginfo(checkable)):
+            i.weight += 200
     replist.prune()
     return replist
 
