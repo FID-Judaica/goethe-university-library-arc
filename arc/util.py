@@ -27,6 +27,7 @@ def main():
     add('--numbers', '-N', action='store_true', help='show "secret" numbers')
     add('--crop', '-c', type=int, default=0)
     add('--sep', '-s', default='│')
+    add('--probabilites', '-p', action='store_true')
     add('--standard', default='old')
     add('--loc', '-l', action='store_true')
     args = ap.parse_args()

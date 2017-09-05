@@ -20,7 +20,7 @@ import re
 import unicodedata
 import functools
 import deromanize
-from deromanize import trees, keygenerator
+from deromanize import trees, keygenerator, get_self_rep
 from HspellPy import Hspell
 import hebrew_numbers
 
@@ -269,17 +269,6 @@ class Prefix(Word):
 def coredecode(keys, word):
     if word == '':
         return get_self_rep(word)
-    replist = _coredecode(keys, word)
-    for i in replist:
-        _, core, _ = double_junker(str(i))
-        checkable = core.replace('״', '"').replace('׳', "'")
-        if not (hspell.check_word(checkable) and hspell.linginfo(checkable)):
-            i.weight += 200
-    replist.prune()
-    return replist
-
-
-def _coredecode(keys, word):
     # add aleph to words that begin with vowels.
     vowels = keys.profile['vowels']
     if word[0] in vowels:
@@ -292,42 +281,14 @@ def _coredecode(keys, word):
             newword += "'" + c
         elif c != word[i-1]:
             newword += c
-    word = newword
-    # get ending clusters, then beginning clusters, then whatever's left in the
-    # middle.
-    end, remainder = keys['end'].getpart(word)
-    if remainder:
-        try:
-            front, remainder = keys['front'].getpart(remainder)
-        except KeyError:
-            return no_end(keys, word)
-    else:
-        return no_end(keys, word)
-
-    if remainder:
-        middle = keys['mid'].getallparts(remainder).add()
-        return (front + middle + end)
-    else:
-        return (front + end)
-
-
-def no_end(keys, word):
-    # this is where words go when getting the ending first produces strange
-    # results.
-    front, remainder = keys['front'].getpart(word)
-    if remainder:
-        end, remainder = keys['end'].getpart(remainder)
-        if remainder:
-            middle = keys['mid'].getallparts(remainder).add()
-            return (front + middle + end)
-        else:
-            return (front + end)
-    else:
-        return (front)
-
-
-def get_self_rep(string):
-    return keygenerator.ReplacementList(string, [string])
+    replist = deromanize.front_mid_end_decode(keys, newword)
+    for i in replist:
+        _, core, _ = double_junker(str(i))
+        checkable = core.replace('״', '"').replace('׳', "'")
+        if not (hspell.check_word(checkable) and hspell.linginfo(checkable)):
+            i.weight += 200
+    replist.prune()
+    return replist
 
 
 def fix_numerals(int_str):
