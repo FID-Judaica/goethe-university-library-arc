@@ -2,7 +2,6 @@ keys:
   base:
     - consonants
     - vowels
-    - other
     - consonant errors: 15
 
   mid:
@@ -55,6 +54,7 @@ consonants:
   ś: ש
   sh: ש
   t: ת
+  "'": [א, ע, '']
 
 vowels:
   i: [י, '']
@@ -62,9 +62,6 @@ vowels:
   a: ''
   o: [ו, [3, '']]
   u: ו
-
-other:
-  "'": [א, ע, '']
 
 clusters:
   "k'h": כה

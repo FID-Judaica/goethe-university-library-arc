@@ -17,7 +17,6 @@
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
 import re
-import unicodedata
 import functools
 import deromanize
 from deromanize import trees, keygenerator, get_self_rep
@@ -55,40 +54,40 @@ class reify:
 #
 # Also note: leading and trailing non-transliteration characters are referred
 # to as "junk". Sorry.
-def junker(word, include_nums=False):
-    """remove non-character symbols from the front of a word. return a tuple
-    containing the junk from the front, and the remainder of the word.
-    """
-    junk = []
-    remainder = ''
-    for i, char in enumerate(word):
-        category = unicodedata.category(char)[0]
-        if category == 'L' or char == "'" or (
-                include_nums and category == 'N'):
-            remainder = word[i:]
-            break
-        junk.append(char)
-        # if junk[-1] == "'":
-        #     del junk[-1]
-        #     remainder = "'" + remainder
+# def junker(word, include_nums=False):
+#     """remove non-character symbols from the front of a word. return a tuple
+#     containing the junk from the front, and the remainder of the word.
+#     """
+#     junk = []
+#     remainder = ''
+#     for i, char in enumerate(word):
+#         category = unicodedata.category(char)[0]
+#         if category == 'L' or char == "'" or (
+#                 include_nums and category == 'N'):
+#             remainder = word[i:]
+#             break
+#         junk.append(char)
+#         # if junk[-1] == "'":
+#         #     del junk[-1]
+#         #     remainder = "'" + remainder
 
-    return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
+#     return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
 
 
-def double_junker(word, include_nums=False):
-    """strip non-character symbols off the front and back of a word. return a
-    tuple with (extra stuff from the front, word, extra stuff from the back)
-    """
-    front_junk, remainder = junker(word, include_nums)
-    back_junk, stripped_word = [
-        i[::-1] for i in junker(remainder[::-1], include_nums)]
-    return front_junk, stripped_word, back_junk
+# def double_junker(word, include_nums=False):
+#     """strip non-character symbols off the front and back of a word. return a
+#     tuple with (extra stuff from the front, word, extra stuff from the back)
+#     """
+#     front_junk, remainder = junker(word, include_nums)
+#     back_junk, stripped_word = [
+#         i[::-1] for i in junker(remainder[::-1], include_nums)]
+#     return front_junk, stripped_word, back_junk
 ###########################
 
 
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile, fix_numerals=False):
+    def __init__(self, profile, strip_func=None, fix_numerals=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
@@ -98,6 +97,11 @@ class Decoder:
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
         self.num = fix_numerals
+        if strip_func:
+            self.strip = strip_func
+        else:
+            self.strip = deromanize.stripper_factory(
+                profile['vowels'].items(), profile['consonants'].items())
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -124,7 +128,7 @@ class Decoder:
                                     he[i].weight,  str(he[i]), str(he[i]))
                             )
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
-                # double_check_spelling(hebz[-1])
+                double_check_spelling(hebz[-1], self.strip)
             else:
                 hebz.append(get_self_rep(chunk))
         return hebz
@@ -145,7 +149,7 @@ class Decoder:
         cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = []
-        w_kwargs = {'keys': self.keys, 'fix_numerals': self.num}
+        w_kwargs = {'decoder': self, 'fix_numerals': self.num}
         for chunk in raw_chunks:
             new_chunk = []
             if chunk == ['', '']:
@@ -153,7 +157,7 @@ class Decoder:
                 continue
             for i, inner in enumerate(chunk[:-1]):
                 if self.checkprefix(i, inner, chunk):
-                    new_chunk.append(Prefix(inner, self.keys))
+                    new_chunk.append(Prefix(inner, self))
                 else:
                     new_chunk.append(Word(inner, **w_kwargs))
                     remixed.extend([new_chunk, [maqef]])
@@ -166,13 +170,13 @@ class Decoder:
         return remixed
 
     def checkprefix(self, i, inner, chunk):
-        front, part, back = double_junker(inner)
+        front, part, back = self.split(inner)
         try:
             beginning, end = self.joined_prefix.getpart(part)
             if end in self.prefix_vowels:
                 return True
             beginning, end = self.gem_prefix.getpart(part)
-            _, nextp, _ = double_junker(chunk[i+1])
+            _, nextp, _ = self.strip(chunk[i+1])
             if nextp.startswith(end):
                 return True
             else:
@@ -209,15 +213,15 @@ def cleanline(line):
 
 
 class Word:
-    def __init__(self, word, keys, fix_numerals=False):
+    def __init__(self, word, decoder, fix_numerals=False):
         self.word = word
-        self.junked = double_junker(word)
-        self.keys = keys
+        self.split = decoder.strip(word)
+        self.keys = decoder.keys
         self.num = fix_numerals
 
     @reify
     def heb(self):
-        front, rom, back = self.junked
+        front, rom, back = self.split
         try:
             word = coredecode(self.keys, rom)
         except KeyError:
@@ -283,8 +287,7 @@ def coredecode(keys, word):
             newword += c
     replist = deromanize.front_mid_end_decode(keys, newword)
     for i in replist:
-        _, core, _ = double_junker(str(i))
-        checkable = core.replace('״', '"').replace('׳', "'")
+        checkable = str(i).replace('״', '"').replace('׳', "'")
         if not (hspell.check_word(checkable) and hspell.linginfo(checkable)):
             i.weight += 200
     replist.prune()
@@ -292,7 +295,7 @@ def coredecode(keys, word):
 
 
 def fix_numerals(int_str):
-    front, num, back = double_junker(int_str, include_nums=True)
+    front, num, back = num_strip(int_str)
     length = len(num)
     if length > 3:
         if num[0] == '5':
@@ -309,10 +312,10 @@ def fix_numerals(int_str):
             int_str, [int_str, front+heb+back])
 
 
-def double_check_spelling(replist):
+def double_check_spelling(replist, strip_func):
     for rep in replist:
         if rep.weight < 0:
-            _, core, _ = double_junker(str(rep))
+            _, core, _ = strip_func(str(rep))
             try:
                 if not hspell.check_word(core):
                     rep.weight += 1000
@@ -323,6 +326,7 @@ def double_check_spelling(replist):
     replist.sort()
 
 
+num_strip = deromanize.stripper_factory(('0123456789',))
 maqef = keygenerator.ReplacementList('-', ['־'])
 maqef.heb = maqef
 maqef.word = '-'

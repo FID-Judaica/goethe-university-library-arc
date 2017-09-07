@@ -39,8 +39,8 @@ def main():
         config_file = PROJ_PATH/'data'/'old.yml'
     elif args.standard in ['loc', 'new']:
         config_file = PROJ_PATH/'data'/'new.yml'
-    decoder = arc.Decoder(
-        yaml.safe_load(config_file.open()), fix_numerals=True)
+    profile = yaml.safe_load(config_file.open())
+    decoder = arc.Decoder(profile, fix_numerals=True)
     set_reps = decoder.profile['to_new']['sets']
     simple_reps = decoder.profile['to_new']['replacements']
     global replace
@@ -50,7 +50,8 @@ def main():
         print(t)
         for word in decoder.decode(t):
             word.prune()
-            word.makestat()
+            if args.probabilites:
+                word.makestat()
             for i, w in enumerate(word):
                 if args.crop and args.crop == i:
                     break
