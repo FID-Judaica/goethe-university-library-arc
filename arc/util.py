@@ -48,7 +48,9 @@ def main():
 
     for t in map(str.rstrip, sys.stdin):
         print(t)
+        print()
         for word in decoder.decode(t):
+            print(word.key)
             word.prune()
             if args.probabilites:
                 word.makestat()

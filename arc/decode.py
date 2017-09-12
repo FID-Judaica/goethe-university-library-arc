@@ -170,7 +170,7 @@ class Decoder:
         return remixed
 
     def checkprefix(self, i, inner, chunk):
-        front, part, back = self.split(inner)
+        front, part, back = self.strip(inner)
         try:
             beginning, end = self.joined_prefix.getpart(part)
             if end in self.prefix_vowels:
@@ -248,7 +248,7 @@ class Word:
 class Prefix(Word):
     @reify
     def heb(self):
-        front, rom, back = self.junked
+        front, rom, back = self.split
         # if rom in u:
         #     word = keygenerator.ReplacementList(rom, ['ו'])
         # else:
