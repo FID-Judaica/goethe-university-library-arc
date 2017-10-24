@@ -18,6 +18,5 @@ setup(
         'pica_parse',
         'filtermaker',
         'deromanize',
-        'PyYaml',
-        'HspellPy',],
+        'PyYaml',],
 )

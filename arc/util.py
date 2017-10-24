@@ -1,19 +1,39 @@
-import sys
 import argparse
-import yaml
+import collections
+import json
+import sys
 import arc
+import yaml
 from pathlib import Path
 from . import cacheutils
 PROJ_PATH = Path(arc.__file__).parents[1]
 
 
 def expand_kv(key, value):
+    """add whitespace so columns look good"""
     lk, lv = len(key), len(value)
     if lk > lv:
         value = value + ' ' * (lk-lv)
     else:
         key = key + ' ' * (lv-lk)
     return key, value
+
+
+def use_dict(rlist, dictionary):
+    if not dictionary:
+        return
+
+    newlist = []
+    for rep in rlist:
+        val = dictionary.get(str(rep))
+        if val is None:
+            continue
+        rep.weight = val
+        newlist.append(rep)
+
+    if newlist:
+        rlist.data = newlist
+        rlist.sort(reverse=True)
 
 
 def main():
@@ -24,9 +44,11 @@ def main():
     add('--show-new', '-n', action='store_true',
         help='Show the corrected from of the word with LoC transliteration')
     add('--debug', '-d', action='store_true', help='show debugging info')
+    add('--dictionary', nargs='*', type=lambda x: json.load(open(x)))
     add('--numbers', '-N', action='store_true', help='show "secret" numbers')
     add('--crop', '-c', type=int, default=0)
-    add('--sep', '-s', default='│')
+    add('--spelling', '-s', action='store_true')
+    add('--sep', default='│')
     add('--probabilites', '-p', action='store_true')
     add('--standard', default='old')
     add('--loc', '-l', action='store_true')
@@ -40,11 +62,16 @@ def main():
     elif args.standard in ['loc', 'new']:
         config_file = PROJ_PATH/'data'/'new.yml'
     profile = yaml.safe_load(config_file.open())
-    decoder = arc.Decoder(profile, fix_numerals=True)
+    decoder = arc.Decoder(profile, fix_numerals=True, spellcheck=args.spelling)
     set_reps = decoder.profile['to_new']['sets']
     simple_reps = decoder.profile['to_new']['replacements']
-    global replace
     get_loc = cacheutils.loc_converter_factory(simple_reps, set_reps)
+    if args.dictionary:
+        dictionary = collections.Counter()
+        for d in args.dictionary:
+            dictionary.update(d)
+    else:
+        dictionary = None
 
     for t in map(str.rstrip, sys.stdin):
         print(t)
@@ -52,6 +79,7 @@ def main():
         for word in decoder.decode(t):
             print(word.key)
             word.prune()
+            use_dict(word, dictionary)
             if args.probabilites:
                 word.makestat()
             for i, w in enumerate(word):

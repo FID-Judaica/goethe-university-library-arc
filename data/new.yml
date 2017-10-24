@@ -115,6 +115,7 @@ final:
   ah: ה
   eh: ה
   e: [י, א]
+  a: [א, '']
 
 final errors:
   e: ה

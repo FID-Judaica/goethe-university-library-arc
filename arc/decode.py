@@ -20,7 +20,11 @@ import re
 import functools
 import deromanize
 from deromanize import trees, keygenerator, get_self_rep
-from HspellPy import Hspell
+try:
+    from HspellPy import Hspell
+    hspell = Hspell(linguistics=True)
+except ImportError:
+    hspell = None
 import hebrew_numbers
 
 
@@ -46,48 +50,10 @@ class reify:
         return val
 
 
-# deromanizing in involves doing special stuff at the start and end of the
-# word. The punctuation marks (obviously screw this up. Originally, these four
-# functions where just going to be one decorator (junk_splitter), but I would
-# have had to rewrite the whole program, so I made some other helper functions.
-# I probably should rewrite the whole program, but, eh, works good.
-#
-# Also note: leading and trailing non-transliteration characters are referred
-# to as "junk". Sorry.
-# def junker(word, include_nums=False):
-#     """remove non-character symbols from the front of a word. return a tuple
-#     containing the junk from the front, and the remainder of the word.
-#     """
-#     junk = []
-#     remainder = ''
-#     for i, char in enumerate(word):
-#         category = unicodedata.category(char)[0]
-#         if category == 'L' or char == "'" or (
-#                 include_nums and category == 'N'):
-#             remainder = word[i:]
-#             break
-#         junk.append(char)
-#         # if junk[-1] == "'":
-#         #     del junk[-1]
-#         #     remainder = "'" + remainder
-
-#     return (''.join(junk), remainder) if remainder else ('', ''.join(junk))
-
-
-# def double_junker(word, include_nums=False):
-#     """strip non-character symbols off the front and back of a word. return a
-#     tuple with (extra stuff from the front, word, extra stuff from the back)
-#     """
-#     front_junk, remainder = junker(word, include_nums)
-#     back_junk, stripped_word = [
-#         i[::-1] for i in junker(remainder[::-1], include_nums)]
-#     return front_junk, stripped_word, back_junk
-###########################
-
-
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile, strip_func=None, fix_numerals=False):
+    def __init__(self, profile, strip_func=None, fix_numerals=False,
+                 spellcheck=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
@@ -97,6 +63,9 @@ class Decoder:
             {i: i for i in profile['gem_prefixes']})
         self.keys = deromanize.KeyGenerator(profile)
         self.num = fix_numerals
+        self.sp = spellcheck
+        self.w_kw = {'decoder': self, 'fix_numerals': self.num,
+                     'spellcheck': self.sp}
         if strip_func:
             self.strip = strip_func
         else:
@@ -128,7 +97,8 @@ class Decoder:
                                     he[i].weight,  str(he[i]), str(he[i]))
                             )
                 hebz.append(deromanize.add_reps([i.heb for i in chunk]))
-                double_check_spelling(hebz[-1], self.strip)
+                if self.sp == 'double':
+                    double_check_spelling(hebz[-1], self.strip)
             else:
                 hebz.append(get_self_rep(chunk))
         return hebz
@@ -149,7 +119,6 @@ class Decoder:
         cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = []
-        w_kwargs = {'decoder': self, 'fix_numerals': self.num}
         for chunk in raw_chunks:
             new_chunk = []
             if chunk == ['', '']:
@@ -159,14 +128,14 @@ class Decoder:
                 if self.checkprefix(i, inner, chunk):
                     new_chunk.append(Prefix(inner, self))
                 else:
-                    new_chunk.append(Word(inner, **w_kwargs))
+                    new_chunk.append(Word(inner, **self.w_kw))
                     remixed.extend([new_chunk, [maqef]])
                     new_chunk = []
             if new_chunk:
-                new_chunk.append(Word(chunk[-1], **w_kwargs))
+                new_chunk.append(Word(chunk[-1], **self.w_kw))
                 remixed.append(new_chunk)
             else:
-                remixed.append([Word(chunk[-1], **w_kwargs)])
+                remixed.append([Word(chunk[-1], **self.w_kw)])
         return remixed
 
     def checkprefix(self, i, inner, chunk):
@@ -213,17 +182,18 @@ def cleanline(line):
 
 
 class Word:
-    def __init__(self, word, decoder, fix_numerals=False):
+    def __init__(self, word, decoder, fix_numerals=False, spellcheck=False):
         self.word = word
         self.split = decoder.strip(word)
         self.keys = decoder.keys
         self.num = fix_numerals
+        self.sp = spellcheck
 
     @reify
     def heb(self):
         front, rom, back = self.split
         try:
-            word = coredecode(self.keys, rom)
+            word = coredecode(self.keys, rom, self.sp)
         except KeyError:
             if self.num:
                 try:
@@ -249,9 +219,6 @@ class Prefix(Word):
     @reify
     def heb(self):
         front, rom, back = self.split
-        # if rom in u:
-        #     word = keygenerator.ReplacementList(rom, ['ו'])
-        # else:
         word, remainder = self.keys['front'].getpart(rom)
         # work on a copy because we're going to modify the object's state
         word = word.copy()
@@ -270,7 +237,7 @@ class Prefix(Word):
         return "Prefix({!r})".format(self.word)
 
 
-def coredecode(keys, word):
+def coredecode(keys, word, spellcheck=False):
     if word == '':
         return get_self_rep(word)
     # add aleph to words that begin with vowels.
@@ -286,10 +253,12 @@ def coredecode(keys, word):
         elif c != word[i-1]:
             newword += c
     replist = deromanize.front_mid_end_decode(keys, newword)
-    for i in replist:
-        checkable = str(i).replace('״', '"').replace('׳', "'")
-        if not (hspell.check_word(checkable) and hspell.linginfo(checkable)):
-            i.weight += 200
+    if spellcheck:
+        for i in replist:
+            checkable = str(i).replace('״', '"').replace('׳', "'")
+            if not (hspell.check_word(checkable) and hspell.linginfo(
+                    checkable)):
+                i.weight += 200
     replist.prune()
     return replist
 
@@ -331,4 +300,3 @@ maqef = keygenerator.ReplacementList('-', ['־'])
 maqef.heb = maqef
 maqef.word = '-'
 u = {'û', 'u'}
-hspell = Hspell(linguistics=True)
