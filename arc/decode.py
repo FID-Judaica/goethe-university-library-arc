@@ -75,28 +75,34 @@ class Decoder:
     def __getitem__(self, key):
         return self.profile[key]
 
-    def decode(self, line):
+    def decode(self, line, stripped=False):
         """Return a list of Word instances from a given line of input."""
         chunks = self.make_chunks(line)
-        return self.get_heb(chunks)
+        return self.get_heb(chunks, stripped=stripped)
 
-    def get_heb(self, chunks):
+    def get_heb(self, chunks, stripped=False):
         hebz = []
         for chunk in chunks:
             if isinstance(chunk, list):
                 if len(chunk) > 1:
-                    he = chunk[-1].heb
-                    for i in range(len(he)):
-                        if he.key == str(he[i]) and he.key != '':
-                            he.keyparts = ('-', he.key)
-                            he.key = '-' + str(he.key)
-                            he[i] = (
-                                deromanize.Replacement(0, '-', '')
-                                +
-                                deromanize.Replacement(
-                                    he[i].weight,  str(he[i]), str(he[i]))
-                            )
-                hebz.append(deromanize.add_reps([i.heb for i in chunk]))
+                    if stripped:
+                        he = chunk[-1].stripped_heb
+                    else:
+                        he = chunk[-1].heb
+                        for i in range(len(he)):
+                            if he.key == str(he[i]) and he.key != '':
+                                he.keyparts = ('-', he.key)
+                                he.key = '-' + str(he.key)
+                                he[i] = (
+                                    deromanize.Replacement(0, '-', '')
+                                    +
+                                    deromanize.Replacement(
+                                        he[i].weight,  str(he[i]), str(he[i]))
+                                )
+                elif stripped and chunk[0] == maqef:
+                    continue
+                hebz.append(deromanize.add_reps(
+                    [i.stripped_heb if stripped else i.heb for i in chunk]))
                 if self.sp == 'double':
                     double_check_spelling(hebz[-1], self.strip)
             else:
@@ -190,7 +196,7 @@ class Word:
         self.sp = spellcheck
 
     @reify
-    def heb(self):
+    def stripped_heb(self):
         front, rom, back = self.split
         try:
             word = coredecode(self.keys, rom, self.sp)
@@ -205,6 +211,14 @@ class Word:
 
         except IndexError:
             return
+        return word
+
+    @reify
+    def heb(self):
+        front, rom, back = self.split
+        word = self.stripped_heb
+        if word is None:
+            return
         if front:
             word = get_self_rep(front) + word
         if back:
@@ -216,8 +230,9 @@ class Word:
 
 
 class Prefix(Word):
+
     @reify
-    def heb(self):
+    def stripped_heb(self):
         front, rom, back = self.split
         word, remainder = self.keys['front'].getpart(rom)
         # work on a copy because we're going to modify the object's state
@@ -226,11 +241,6 @@ class Prefix(Word):
         key = word.key + remainder[0:1]
         w = word[0]
         word.data = [rep(w.weight, str(w), key) + rep(0, '', '-')]
-
-        if front:
-            word = get_self_rep(front) + word
-        if back:
-            word += get_self_rep(back)
         return word
 
     def __repr__(self):
@@ -298,5 +308,6 @@ def double_check_spelling(replist, strip_func):
 num_strip = deromanize.stripper_factory(('0123456789',))
 maqef = keygenerator.ReplacementList('-', ['־'])
 maqef.heb = maqef
+maqef.stripped_heb = get_self_rep('')
 maqef.word = '-'
 u = {'û', 'u'}
