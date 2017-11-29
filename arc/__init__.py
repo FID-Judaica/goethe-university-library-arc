@@ -18,3 +18,5 @@
 # this file under either the MPL or the EUPL.
 
 from .decode import Decoder
+from .config import Config
+from deromanize import ConfigError

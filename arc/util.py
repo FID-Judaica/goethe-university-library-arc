@@ -3,10 +3,9 @@ import collections
 import json
 import sys
 import arc
-import yaml
-from pathlib import Path
+from arc import config
 from . import cacheutils
-PROJ_PATH = Path(arc.__file__).parents[1]
+CFG = config.Config()
 
 
 def expand_kv(key, value):
@@ -58,10 +57,9 @@ def main():
         args.standard = 'loc'
 
     if args.standard == 'old':
-        config_file = PROJ_PATH/'data'/'old.yml'
+        profile = CFG.get_profile('old')
     elif args.standard in ['loc', 'new']:
-        config_file = PROJ_PATH/'data'/'new.yml'
-    profile = yaml.safe_load(config_file.open())
+        profile = CFG.get_profile('new')
     decoder = arc.Decoder(profile, fix_numerals=True, spellcheck=args.spelling)
     set_reps = decoder.profile['to_new']['sets']
     simple_reps = decoder.profile['to_new']['replacements']
@@ -76,7 +74,7 @@ def main():
     for t in map(str.rstrip, sys.stdin):
         print(t)
         print()
-        for word in decoder.decode(t):
+        for word in decoder.decode(t, stripped=True):
             print(word.key)
             word.prune()
             use_dict(word, dictionary)
