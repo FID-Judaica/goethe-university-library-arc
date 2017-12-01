@@ -19,7 +19,6 @@
 import pica_parse
 import string
 import filtermaker
-import json
 
 # # Data Definitions # #
 # common words and chars in other languages which should not appear in Hebrew.
@@ -203,8 +202,6 @@ def main():
         help='a python expression which must evaluate to True in a boolean '
         'context for the line to print. current line can be accessed with the '
         'name `line`')
-    add('-p', '--pica', action='store_true',
-        help='pica on stdin, json on stdout')
 
     args = ap.parse_args()
     required = set(args.required.split(',')) - {''}
@@ -212,23 +209,15 @@ def main():
     props = required | forbidden
 
     test = tester_maker(args.expression)
-    for ppn, rec in pica_parse.file2dicts(sys.stdin):
-        try:
-            title = pica_parse.PicaField('021A', rec['021A'][0], 'ƒ')
-        except KeyError:
-            continue
-
-        if 'a' not in title:
-            continue
-
-        if test(Line(title['a'][0], *props), required, forbidden):
-            if 'd' in title:
-                if test(Line(title['d'][0], *props), required, forbidden):
-                    print(ppn)
-                else:
-                    continue
-            else:
-                print(ppn)
+    for rec in pica_parse.file2records(sys.stdin):
+        fields_of_interest = []
+        for field in rec:
+            for key, text in field.items():
+                if test(Line(text, *props), required, forbidden):
+                    fields_of_interest.append(
+                            '{}.{}: {}'.format(field.id, key, text))
+        if fields_of_interest:
+            print(rec.ppn, *fields_of_interest, sep='\t')
 
 
     # if args.pica:
