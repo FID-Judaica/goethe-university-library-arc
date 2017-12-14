@@ -89,16 +89,17 @@ class Decoder:
                         he = chunk[-1].stripped_heb
                     else:
                         he = chunk[-1].heb
-                        for i in range(len(he)):
-                            if he.key == str(he[i]) and he.key != '':
-                                he.keyparts = ('-', he.key)
-                                he.key = '-' + str(he.key)
-                                he[i] = (
-                                    deromanize.Replacement(0, '-', '')
-                                    +
-                                    deromanize.Replacement(
-                                        he[i].weight,  str(he[i]), str(he[i]))
-                                )
+                    # this loop adds hyphens before un-converted words.
+                    for i in range(len(he)):
+                        if he.key == str(he[i]) and he.key != '':
+                            he.keyparts = ('-', he.key)
+                            he.key = '-' + str(he.key)
+                            he[i] = (
+                                deromanize.Replacement(0, '-', '')
+                                +
+                                deromanize.Replacement(
+                                    he[i].weight,  str(he[i]), str(he[i]))
+                            )
                 elif stripped and chunk[0] == maqef:
                     continue
                 hebz.append(deromanize.add_reps(
