@@ -42,11 +42,7 @@ def loc_converter_factory(simple_reps, set_reps):
 
     def get_loc(rep):
         flat_vowels = cacheutils.strip_chars(rep.keyvalue)
-        try:
-            loc = ''.join((i[0] for i in replace(flat_vowels)))
-        except TypeError:
-            print(rep.keyvalue)
-            loc = 'whatever'
+        loc = ''.join((i[0] for i in replace(flat_vowels)))
         if len(loc) > 1:
             if loc[0] == 'ʾ':
                 loc = loc[1:]

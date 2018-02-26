@@ -74,8 +74,9 @@ def main():
     for t in map(str.rstrip, sys.stdin):
         print(t)
         print()
-        for word in decoder.decode(t, stripped=True):
+        for word in decoder.decode(t, strip=False):
             print(word.key)
+            print('-' * len(word.key))
             word.prune()
             use_dict(word, dictionary)
             if args.probabilites:
@@ -94,7 +95,7 @@ def main():
                     atoms = [expand_kv(k, v) for k, v in w.keyvalue]
                     print('  ' + args.sep.join(rom for rom, _ in atoms))
                     print('  ' + args.sep.join(heb for _, heb in atoms) + '\n')
-        print()
+            print()
 
 
 if __name__ == '__main__':
