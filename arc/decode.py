@@ -17,8 +17,9 @@
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
 import collections
-import re
 import functools
+import re
+import unicodedata
 import deromanize
 from deromanize import trees, keygenerator, get_self_rep
 from collections import abc
@@ -186,7 +187,16 @@ def debracket(line):
         line = re.sub(r'\[.*?\]', '', line)
     if rebracket:
         line = '[' + line + ']'
+    line = remove_combining(line)
     return line
+
+
+def remove_combining(line):
+    new_line = []
+    for c in line:
+        if unicodedata.category(c) != 'Mn':
+            new_line.append(c)
+    return ''.join(new_line)
 
 
 class Word:
@@ -284,21 +294,23 @@ class LinkedReplist(collections.UserList):
             hd.setdefault(str(reps[0]), []).append((i, reps))
         return hd
 
+    def copy(self):
+        return type(self)(*[l.copy() for l in self.linked])
+
 
 class Chunk(collections.UserList):
     def __init__(self, parts=None):
         self.data = parts or []
 
     def replist_gen(self, strip=False):
-        # make a copy of the data because hyphenate function uses side-effects
         prefix = self.prefix_gen(strip)
         if strip:
-            he = self.data[-1].stripped_heb.copy()
+            he = self.data[-1].stripped_heb
         else:
-            he = self.data[-1].heb.copy()
+            he = self.data[-1].heb
 
         if prefix:
-            hyphenate(he)
+            he = hyphenate(he)
         return prefix + he
 
     def prefix_gen(self, strip=False):
@@ -310,14 +322,17 @@ class Chunk(collections.UserList):
         return 'Chunk({!r})'.format(self.data)
 
     @reify
+    @functools.lru_cache(2**10)
     def stripped_heb(self):
         return self.replist_gen(strip=True)
 
     @reify
+    @functools.lru_cache(2**10)
     def heb(self):
         return self.replist_gen(strip=False)
 
     @reify
+    @functools.lru_cache(2**10)
     def linked_heb(self):
         return LinkedReplist(
             self.stripped_heb, self.heb, self[-1].stripped_heb)
@@ -336,10 +351,12 @@ class Chunk(collections.UserList):
     def get_match(self, word):
         return self.linked_heb.head_dict[word]
 
+    def __hash__(self):
+        return hash(tuple(self.data))
 
-# horrible, dangerous, side-effect-y function, probably send in a copy
-# usually maybe.
+
 def hyphenate(rep):
+    rep = rep.copy()
     for i in range(len(rep)):
         if rep.key == str(rep[i]) and rep.key != '':
             rep.keyparts = ('-', rep.key)
@@ -350,6 +367,7 @@ def hyphenate(rep):
                 deromanize.Replacement(
                     rep[i].weight,  str(rep[i]), str(rep[i]))
             )
+    return rep
 
 
 class Chunks(collections.UserList):
@@ -410,7 +428,7 @@ class Chunks(collections.UserList):
         return self.get_heb(strip=True, link=True)
 
     def link_from_wordlist(self, wordlist):
-        word_iter = OopsIter(wordlist)
+        word_iter = iter(wordlist)
         word_counts = collections.Counter()
         reps = []
         cacheable = []
@@ -466,7 +484,11 @@ def fix_numerals(int_str, gershayim=False):
         else:
             return get_self_rep(int_str)
 
-    heb = hebrew_numbers.int_to_gematria(num)
+    try:
+        heb = hebrew_numbers.int_to_gematria(num)
+    except KeyError:
+        return get_self_rep(int_str)
+
     if not gershayim:
         heb = heb.replace('״', '"')
     if length >= 3:
