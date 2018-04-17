@@ -119,6 +119,7 @@ class Decoder:
         return romed
 
     def make_chunks(self, line: str):
+        print(line)
         cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = Chunks(self)
@@ -469,7 +470,7 @@ def coredecode(keys, word, spellcheck=False):
     replist = deromanize.front_mid_end_decode(keys, newword)
     if spellcheck:
         for i in replist:
-            if not (hspell.check_word(i) and hspell.linginfo(i)):
+            if not (hspell.check_word(str(i)) and hspell.linginfo(str(i))):
                 i.weight += 200
     replist.prune()
     return replist
