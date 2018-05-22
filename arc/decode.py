@@ -119,7 +119,6 @@ class Decoder:
         return romed
 
     def make_chunks(self, line: str):
-        print(line)
         cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = Chunks(self)
