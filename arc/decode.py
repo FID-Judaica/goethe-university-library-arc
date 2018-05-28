@@ -170,7 +170,7 @@ def cleanline(line):
     if ' -' in line:
         line = re.sub(r' -(\w)', r'-\1', line)
     if line.startswith('ha'):
-        line = re.sub('^ha\w{0,2}- *@', 'h @', line)
+        line = re.sub(r'^ha\w{0,2}- *@', 'h @', line)
 
     line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
 
@@ -285,7 +285,7 @@ class LinkedReplist(collections.UserList):
         if index is None:
             return list(zip(*self.linked))
         else:
-            tuple(rlist[index] for rlist in self.linked)
+            return tuple(rlist[index] for rlist in self.linked)
 
     @reify
     def head_dict(self):
