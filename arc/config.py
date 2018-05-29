@@ -1,4 +1,3 @@
-import sqlite3
 from pathlib import Path
 from . import Decoder
 from arc.db import ArcDB
@@ -15,4 +14,4 @@ class Config(deromanize.Config):
                        *args, **kwargs)
 
     def get_db(self):
-        return ArcDB(sqlite3.connect(str(self.db_path)))
+        return ArcDB('sqlite:///' + str(self.db_path))

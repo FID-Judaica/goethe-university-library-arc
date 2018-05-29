@@ -18,5 +18,6 @@ setup(
         'pica_parse',
         'filtermaker',
         'deromanize',
-        'PyYaml',],
+        'PyYaml',
+        'sqlachemy',],
 )

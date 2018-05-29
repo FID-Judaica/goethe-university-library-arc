@@ -18,10 +18,45 @@
 # this file under either the MPL or the EUPL.
 import re
 import pica_parse.db
-
-
-breaks = re.compile('[\s־]+')
+import sqlalchemy as sa
+breaks = re.compile(r'[\s־]+')
 nocheck = {'־', 'ה', '-', '։', ';'}
+
+SQLite_VIEWS = '''\
+CREATE VIEW If NOT EXISTS `audit` AS
+    SELECT c.ppn, records.content, c.suggested, c.corrected
+    FROM changes AS c
+    JOIN records ON c.ppn = records.ppn AND records.field = '021A';
+CREATE VIEW IF NOT EXISTS `word_totals` AS
+    select cast(sum(errors) as float) as errors,
+           cast(sum(words) as float) as words
+           from checked;
+CREATE VIEW IF NOT EXISTS `word_percision` AS
+    select 1 - errors/words from word_totals;
+CREATE VIEW IF NOT EXISTS `title_totals` AS
+    select cast((select count(ppn) from checked)
+                as float) as titles,
+           cast((select count(ppn) from checked where errors = 0)
+                as float) as clean;'''
+
+
+class Checked(pica_parse.db.Base):
+    __tablename__ = 'checked'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    ppn = sa.Column(sa.String, sa.ForeignKey('records.ppn'), index=True)
+    words = sa.Column(sa.Integer)
+    errors = sa.Column(sa.Integer, index=True)
+    corrected = sa.Column(sa.String)
+
+
+class Change(pica_parse.db.Base):
+    __tablename__ = 'changes'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    ppn = sa.Column(sa.String, sa.ForeignKey('checked.ppn'), index=True)
+    suggested = sa.Column(sa.String)
+    corrected = sa.Column(sa.String)
 
 
 class ArcDB(pica_parse.db.PicaDB):
@@ -31,60 +66,23 @@ class ArcDB(pica_parse.db.PicaDB):
     It also has facilities for adding verified normalizations into the
     database.
     """
-    def __init__(self, connection, sep='ƒ'):
+    def __init__(self, sqlachemy_url):
         """database queries for pica records.
 
-        - connection: an sqlit3 database. The schema for the records is
-          assigned to the values of the variable `scheme` near the top of
-          the file.
-
-        - sep is the character used to separate subfields in the records.
+        - sqlachemy_url: a sqlalchemy-format database url. see:
+        http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls
         """
-        super().__init__(connection)
-        self.sep = sep
-        with self.con as con:
-            con.executescript('''
-            CREATE TABLE IF NOT EXISTS checked (
-                ppn VARCHAR PRIMARY KEY,
-                words INTEGER,
-                errors INTEGER,
-                corrected VARCHAR
-            );
-            CREATE INDEX IF NOT EXISTS errors ON checked (errors);
-
-            CREATE TABLE IF NOT EXISTS changes (
-                ppn VARCHAR,
-                suggested VARCHAR,
-                corrected VARCHAR
-            );
-            CREATE INDEX IF NOT EXISTS  change_ppns ON changes (ppn);
-
-            CREATE VIEW If NOT EXISTS `audit` AS
-                SELECT c.ppn, records.content, c.suggested, c.corrected
-                FROM changes AS c
-                JOIN records ON c.ppn = records.ppn AND records.field = '021A';
-            CREATE VIEW IF NOT EXISTS `word_totals` AS
-                select cast(sum(errors) as float) as errors,
-                       cast(sum(words) as float) as words
-                       from checked;
-            CREATE VIEW IF NOT EXISTS `word_percision` AS
-                select 1 - errors/words from word_totals;
-            CREATE VIEW IF NOT EXISTS `title_totals` AS
-                select cast((select count(ppn) from checked)
-                            as float) as titles,
-                       cast((select count(ppn) from checked where errors = 0)
-                            as float) as clean
-            ''')
+        super().__init__(sqlachemy_url)
 
     def add_input(self, ppn, generated, submitted):
         words, errors, badwords = diff_output(generated, submitted)
-        self.con.execute(
-            'INSERT OR REPLACE INTO checked VALUES (?, ?, ?, ?)',
-            (ppn, words, errors, submitted or None))
+        self.session.add(Checked(ppn=ppn, words=words, errors=errors,
+                                 corrected=submitted or None))
         if errors:
-            self.con.execute('DELETE FROM changes WHERE ppn = ?', (ppn,))
-            self.con.executemany('INSERT INTO changes VALUES(?, ?, ?)',
-                                 ((ppn, *w) for w in badwords))
+            self.session.query(Change).filter(ppn=ppn).delete()
+            self.session.add_all(
+                Change(ppn=ppn, suggested=w[0], corrected=w[1])
+                for w in badwords)
 
     def get_title(self, ppn):
         fields = self[ppn, '021A']
@@ -116,11 +114,3 @@ def diff_output(generated, submitted):
                 badwords.append((gen, sub))
     words = len(submittedl)
     return words, errors, badwords
-
-
-if __name__ == '__main__':
-    from pathlib import Path
-    import sqlite3
-    PROJECT_DIR = Path(__file__).absolute().parents[1]
-    DB_PATH = PROJECT_DIR/'pica.db'
-    db = ArcDB(sqlite3.connect(str(DB_PATH)))
