@@ -47,7 +47,7 @@ def loc_converter_factory(simple_reps, set_reps):
             if loc[0] == 'ʾ':
                 loc = loc[1:]
             if loc[-1] == 'ʾ':
-                loc = loc[-1]
+                loc = loc[:-1]
             loc = loc.replace('-ʾ', '-')
         return loc
 

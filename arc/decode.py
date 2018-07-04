@@ -22,7 +22,6 @@ import re
 import unicodedata
 import deromanize
 from deromanize import trees, keygenerator, get_self_rep
-from collections import abc
 try:
     from HspellPy import Hspell
     hspell = Hspell(linguistics=True)
@@ -39,19 +38,18 @@ class NoMatch(Exception):
     pass
 
 
-class OopsIter(abc.Iterator):
-    def __init__(self, iterable):
-        self.iter = iter(iterable)
-        self.stack = collections.deque()
+def cache(method):
+    name = '_%s' % method.__name__
 
-    def __next__(self):
-        if self.stack:
-            return self.stack.popleft()
-        else:
-            return next(self.iter)
-
-    def oops(self, item):
-        self.stack.append(item)
+    @property
+    def wrapper(self):
+        try:
+            return getattr(self, name)
+        except AttributeError:
+            val = method(self)
+            setattr(self, name, val)
+            return val
+    return wrapper
 
 
 class reify:
@@ -79,7 +77,7 @@ class reify:
 class Decoder:
     """Decoder class for our catalogue standards."""
     def __init__(self, profile, strip_func=None, fix_numerals=False,
-                 spellcheck=False):
+                 spellcheck=False, fix_k=False):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
@@ -97,6 +95,8 @@ class Decoder:
         else:
             self.strip = deromanize.stripper_factory(
                 profile['vowels'].items(), profile['consonants'].items())
+
+        self.fix_k = mk_k_fixer(profile['vowels']) if fix_k else None
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -119,6 +119,9 @@ class Decoder:
         return romed
 
     def make_chunks(self, line: str):
+        line = line.lower()
+        if self.fix_k:
+            line = self.fix_k(line)
         cleaned_line = cleanline(line)
         raw_chunks = [i.split('-') for i in cleaned_line.split()]
         remixed = Chunks(self)
@@ -158,7 +161,6 @@ class Decoder:
 
 
 def cleanline(line):
-    line = line.lower()
 
     if line[0] == '@':
         line = line[1:]
@@ -175,6 +177,18 @@ def cleanline(line):
     line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
 
     return line
+
+
+def mk_k_fixer(vowels):
+    vowels = ''.join(vowels)
+    exp = re.compile('(?<=['+vowels+'])k(?![k-])')
+
+    def fix_k(line):
+        if 'k' not in line:
+            return line
+        return exp.sub('ḵ', line)
+
+    return fix_k
 
 
 def debracket(line):
@@ -200,6 +214,8 @@ def remove_combining(line):
 
 
 class Word:
+    __slots__ = 'word', 'split', 'keys', 'num', 'sp', '_stripped_heb', '_heb'
+
     def __init__(self, word, decoder, fix_numerals=False, spellcheck=False):
         self.word = word
         self.split = decoder.strip(word)
@@ -207,8 +223,12 @@ class Word:
         self.num = fix_numerals
         self.sp = spellcheck
 
-    @reify
+    @property
     def stripped_heb(self):
+        try:
+            return self._stripped_heb
+        except AttributeError:
+            pass
         front, rom, back = self.split
         try:
             word = coredecode(self.keys, rom, self.sp)
@@ -223,10 +243,15 @@ class Word:
 
         except IndexError:
             return
+        self._stripped_heb = word
         return word
 
-    @reify
+    @property
     def heb(self):
+        try:
+            return self._heb
+        except AttributeError:
+            pass
         front, rom, back = self.split
         word = self.stripped_heb
         if word is None:
@@ -235,6 +260,7 @@ class Word:
             word = get_self_rep(front) + word
         if back:
             word = word + get_self_rep(back)
+        self._heb = word
         return word
 
     def __repr__(self):
@@ -242,8 +268,9 @@ class Word:
 
 
 class Prefix(Word):
+    __slots__ = 'word', 'split', 'keys', 'num', 'sp', '_stripped_heb', '_heb'
 
-    @reify
+    @cache
     def stripped_heb(self):
         front, rom, back = self.split
         word, remainder = self.keys['front'].getpart(rom)
@@ -252,7 +279,7 @@ class Prefix(Word):
         rep = deromanize.Replacement
         key = word.key + remainder[0:1]
         w = word[0]
-        word.data = [rep(w.weight, str(w), key) + rep(0, '', '-')]
+        word.data = [rep.new(w.weight, str(w), key) + rep.new(0, '', '-')]
         return word
 
     def __repr__(self):
@@ -260,6 +287,8 @@ class Prefix(Word):
 
 
 class LinkedReplist(collections.UserList):
+    __slots__ = 'data', 'linked', '_head_dict'
+
     def __init__(self, *linked):
         self.data = linked[0]
         self.linked = linked
@@ -287,7 +316,7 @@ class LinkedReplist(collections.UserList):
         else:
             return tuple(rlist[index] for rlist in self.linked)
 
-    @reify
+    @cache
     def head_dict(self):
         hd = {}
         for i, reps in enumerate(self.groups()):
@@ -322,17 +351,14 @@ class Chunk(collections.UserList):
         return 'Chunk({!r})'.format(self.data)
 
     @reify
-    @functools.lru_cache(2**10)
     def stripped_heb(self):
         return self.replist_gen(strip=True)
 
     @reify
-    @functools.lru_cache(2**10)
     def heb(self):
         return self.replist_gen(strip=False)
 
     @reify
-    @functools.lru_cache(2**10)
     def linked_heb(self):
         return LinkedReplist(
             self.stripped_heb, self.heb, self[-1].stripped_heb)
@@ -359,12 +385,11 @@ def hyphenate(rep):
     rep = rep.copy()
     for i in range(len(rep)):
         if rep.key == str(rep[i]) and rep.key != '':
-            rep.keyparts = ('-', rep.key)
             rep.key = '-' + str(rep.key)
             rep[i] = (
-                deromanize.Replacement(0, '-', '')
+                deromanize.Replacement.new(0, '-', '')
                 +
-                deromanize.Replacement(
+                deromanize.Replacement.new(
                     rep[i].weight,  str(rep[i]), str(rep[i]))
             )
     return rep
@@ -514,7 +539,13 @@ def double_check_spelling(replist, strip_func):
 
 
 num_strip = deromanize.stripper_factory(('0123456789',))
-maqef = keygenerator.ReplacementList('-', ['־'])
+
+
+class FakeReplacementList(keygenerator.ReplacementList):
+    pass
+
+
+maqef = FakeReplacementList('-', ['־'])
 maqef.heb = maqef
 maqef.stripped_heb = get_self_rep('')
 maqef.word = '-'

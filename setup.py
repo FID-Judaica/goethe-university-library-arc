@@ -19,5 +19,5 @@ setup(
         'filtermaker',
         'deromanize',
         'PyYaml',
-        'sqlachemy',],
+        'sqlalchemy',],
 )
