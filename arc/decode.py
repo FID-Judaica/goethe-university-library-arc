@@ -343,7 +343,7 @@ class Chunk(collections.UserList):
         return prefix + he
 
     def prefix_gen(self, strip=False):
-        return deromanize.add_reps(
+        return deromanize.add_rlists(
             [i.stripped_heb if strip else i.heb
              for i in self.data[:-1]])
 
@@ -385,7 +385,7 @@ def hyphenate(rep):
     rep = rep.copy()
     for i in range(len(rep)):
         if rep.key == str(rep[i]) and rep.key != '':
-            rep.key = '-' + str(rep.key)
+            rep.keyparts = ('-',) + rep.keyparts
             rep[i] = (
                 deromanize.Replacement.new(0, '-', '')
                 +
@@ -517,10 +517,10 @@ def fix_numerals(int_str, gershayim=False):
     if not gershayim:
         heb = heb.replace('״', '"')
     if length >= 3:
-        return keygenerator.ReplacementList(
+        return keygenerator.ReplacementList.new(
             int_str, [front+heb+back, int_str])
     else:
-        return keygenerator.ReplacementList(
+        return keygenerator.ReplacementList.new(
             int_str, [int_str, front+heb+back])
 
 
@@ -545,7 +545,7 @@ class FakeReplacementList(keygenerator.ReplacementList):
     pass
 
 
-maqef = FakeReplacementList('-', ['־'])
+maqef = FakeReplacementList.new('-', ['־'])
 maqef.heb = maqef
 maqef.stripped_heb = get_self_rep('')
 maqef.word = '-'
