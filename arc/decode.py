@@ -17,11 +17,13 @@
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
 import collections
-import functools
 import re
 import unicodedata
-import deromanize
-from deromanize import trees, keygenerator, get_self_rep
+import deromanize as dr
+import libaaron
+from deromanize import trees, keygenerator as kg, get_self_rep
+from . import cacheutils
+
 try:
     from HspellPy import Hspell
     hspell = Hspell(linguistics=True)
@@ -38,65 +40,42 @@ class NoMatch(Exception):
     pass
 
 
-def cache(method):
-    name = '_%s' % method.__name__
-
-    @property
-    def wrapper(self):
-        try:
-            return getattr(self, name)
-        except AttributeError:
-            val = method(self)
-            setattr(self, name, val)
-            return val
-    return wrapper
-
-
-class reify:
-    """Use as a class method decorator.  It operates almost exactly like the
-    Python ``@property`` decorator, but it puts the result of the method it
-    decorates into the instance dict after the first call, effectively
-    replacing the function it decorates with an instance variable.  It is, in
-    Python parlance, a non-data descriptor.
-
-    Stolen from pyramid.
-    http://docs.pylonsproject.org/projects/pyramid/en/latest/api/decorator.html#pyramid.decorator.reify
-    """
-    def __init__(self, wrapped):
-        self.wrapped = wrapped
-        functools.update_wrapper(self, wrapped)
-
-    def __get__(self, inst, objtype=None):
-        if inst is None:
-            return self
-        val = self.wrapped(inst)
-        setattr(inst, self.wrapped.__name__, val)
-        return val
-
-
 class Decoder:
     """Decoder class for our catalogue standards."""
-    def __init__(self, profile, strip_func=None, fix_numerals=False,
-                 spellcheck=False, fix_k=False):
+    def __init__(
+        self,
+        profile,
+        strip_func=None,
+        fix_numerals=False,
+        spellcheck=False,
+        fix_k=False,
+    ):
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
-            {i: i for i in profile['joined_prefixes']})
-        self.prefix_vowels = set(profile['prefix_vowels']) | {''}
-        self.gem_prefix = trees.Trie(
-            {i: i for i in profile['gem_prefixes']})
-        self.keys = deromanize.KeyGenerator(profile)
+            {i: i for i in profile["joined_prefixes"]})
+        self.prefix_vowels = set(profile["prefix_vowels"]) | {""}
+        self.gem_prefix = trees.Trie({i: i for i in profile["gem_prefixes"]})
+        self.keys = dr.KeyGenerator(profile)
         self.num = fix_numerals
         self.sp = spellcheck
-        self.w_kw = {'decoder': self, 'fix_numerals': self.num,
-                     'spellcheck': self.sp}
+        self.w_kw = {"decoder": self,
+                     "fix_numerals": self.num, "spellcheck": self.sp}
         if strip_func:
             self.strip = strip_func
         else:
-            self.strip = deromanize.stripper_factory(
-                profile['vowels'].items(), profile['consonants'].items())
+            self.strip = dr.stripper_factory(
+                profile["vowels"].items(), profile["consonants"].items()
+            )
 
-        self.fix_k = mk_k_fixer(profile['vowels']) if fix_k else None
+        self.fix_k = mk_k_fixer(profile["vowels"]) if fix_k else None
+        set_reps = profile['to_new']['sets']
+        simple_reps = profile['to_new']['replacements']
+        self.get_loc = cacheutils.loc_converter_factory(simple_reps, set_reps)
+
+    def locandphon(self, rep):
+        loc = self.get_loc(rep)
+        return loc, cacheutils.loc2phon(loc)
 
     def __getitem__(self, key):
         return self.profile[key]
@@ -111,7 +90,7 @@ class Decoder:
         for chunk in chunks:
             if isinstance(chunk, Chunk):
                 try:
-                    romed.append('-'.join(i.word for i in chunk))
+                    romed.append("-".join(i.word for i in chunk))
                 except AttributeError:
                     raise
             else:
@@ -123,11 +102,11 @@ class Decoder:
         if self.fix_k:
             line = self.fix_k(line)
         cleaned_line = cleanline(line)
-        raw_chunks = [i.split('-') for i in cleaned_line.split()]
+        raw_chunks = [i.split("-") for i in cleaned_line.split()]
         remixed = Chunks(self)
         for chunk in raw_chunks:
-            if chunk == ['', '']:
-                remixed.append('-')
+            if chunk == ["", ""]:
+                remixed.append("-")
                 continue
             new_chunk = Chunk()
             for i, inner in enumerate(chunk[:-1]):
@@ -151,7 +130,7 @@ class Decoder:
             if end in self.prefix_vowels:
                 return True
             beginning, end = self.gem_prefix.getpart(part)
-            _, nextp, _ = self.strip(chunk[i+1])
+            _, nextp, _ = self.strip(chunk[i + 1])
             if nextp.startswith(end):
                 return True
             else:
@@ -162,31 +141,31 @@ class Decoder:
 
 def cleanline(line):
 
-    if line[0] == '@':
+    if line[0] == "@":
         line = line[1:]
 
     line = debracket(line)
 
-    if '- ' in line:
-        line = re.sub(r'(\w)- +([^@])', r'\1-\2', line)
-    if ' -' in line:
-        line = re.sub(r' -(\w)', r'-\1', line)
-    if line.startswith('ha'):
-        line = re.sub(r'^ha\w{0,2}- *@', 'h @', line)
+    if "- " in line:
+        line = re.sub(r"(\w)- +([^@])", r"\1-\2", line)
+    if " -" in line:
+        line = re.sub(r" -(\w)", r"-\1", line)
+    if line.startswith("ha"):
+        line = re.sub(r"^ha\w{0,2}- *@", "h @", line)
 
-    line = re.sub(r'\b([blw])([î]-|-[iî])', r'\1i-yĕ', line)
+    line = re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
 
     return line
 
 
 def mk_k_fixer(vowels):
-    vowels = ''.join(vowels)
-    exp = re.compile('(?<=['+vowels+'])k(?![k-])')
+    vowels = "".join(vowels)
+    exp = re.compile("(?<=[" + vowels + "])k(?![k-])")
 
     def fix_k(line):
-        if 'k' not in line:
+        if "k" not in line:
             return line
-        return exp.sub('ḵ', line)
+        return exp.sub("ḵ", line)
 
     return fix_k
 
@@ -194,13 +173,13 @@ def mk_k_fixer(vowels):
 def debracket(line):
     # # bracket shenanigans # #
     rebracket = False
-    if line[0] == '[' and line[-1] == ']' and ']' not in line[:-1]:
+    if line[0] == "[" and line[-1] == "]" and "]" not in line[:-1]:
         line = line[1:-1]
         rebracket = True
-    if '[' in line:
-        line = re.sub(r'\[.*?\]', '', line)
+    if "[" in line:
+        line = re.sub(r"\[.*?\]", "", line)
     if rebracket:
-        line = '[' + line + ']'
+        line = "[" + line + "]"
     line = remove_combining(line)
     return line
 
@@ -208,13 +187,13 @@ def debracket(line):
 def remove_combining(line):
     new_line = []
     for c in line:
-        if unicodedata.category(c) != 'Mn':
+        if unicodedata.category(c) != "Mn":
             new_line.append(c)
-    return ''.join(new_line)
+    return "".join(new_line)
 
 
 class Word:
-    __slots__ = 'word', 'split', 'keys', 'num', 'sp', '_stripped_heb', '_heb'
+    __slots__ = "word", "split", "keys", "num", "sp", "_stripped_heb", "_heb"
 
     def __init__(self, word, decoder, fix_numerals=False, spellcheck=False):
         self.word = word
@@ -268,18 +247,18 @@ class Word:
 
 
 class Prefix(Word):
-    __slots__ = 'word', 'split', 'keys', 'num', 'sp', '_stripped_heb', '_heb'
+    __slots__ = "word", "split", "keys", "num", "sp", "_stripped_heb", "_heb"
 
-    @cache
+    @libaaron.cached
     def stripped_heb(self):
         front, rom, back = self.split
-        word, remainder = self.keys['front'].getpart(rom)
+        word, remainder = self.keys["front"].getpart(rom)
         # work on a copy because we're going to modify the object's state
         word = word.copy()
-        rep = deromanize.Replacement
+        rep = dr.Replacement
         key = word.key + remainder[0:1]
         w = word[0]
-        word.data = [rep.new(w.weight, str(w), key) + rep.new(0, '', '-')]
+        word.data = [rep.new(w.weight, str(w), key) + rep.new(0, "", "-")]
         return word
 
     def __repr__(self):
@@ -287,16 +266,14 @@ class Prefix(Word):
 
 
 class LinkedReplist(collections.UserList):
-    __slots__ = 'data', 'linked', '_head_dict'
+    __slots__ = "data", "linked", "_head_dict"
 
     def __init__(self, *linked):
         self.data = linked[0]
         self.linked = linked
 
     def __repr__(self):
-        return ('LinkedReplist(' +
-                ', '.join(repr(i) for i in self.linked) +
-                ')')
+        return "LinkedReplist(" + ", ".join(repr(i) for i in self.linked) + ")"
 
     def __delitem__(self, index):
         for replist in self.linked:
@@ -316,7 +293,7 @@ class LinkedReplist(collections.UserList):
         else:
             return tuple(rlist[index] for rlist in self.linked)
 
-    @cache
+    @libaaron.cached
     def head_dict(self):
         hd = {}
         for i, reps in enumerate(self.groups()):
@@ -330,35 +307,59 @@ class LinkedReplist(collections.UserList):
 class Chunk(collections.UserList):
     def __init__(self, parts=None):
         self.data = parts or []
+        self.reorder = None
+
+    @property
+    def rom(self):
+        return '-'.join(p.word for p in self)
 
     def replist_gen(self, strip=False):
         prefix = self.prefix_gen(strip)
         if strip:
-            he = self.data[-1].stripped_heb
+            he = self.base.stripped_heb
         else:
-            he = self.data[-1].heb
+            he = self.base.heb
 
         if prefix:
             he = hyphenate(he)
         return prefix + he
 
     def prefix_gen(self, strip=False):
-        return deromanize.add_rlists(
-            [i.stripped_heb if strip else i.heb
-             for i in self.data[:-1]])
+        return dr.add_rlists(
+            [i.stripped_heb if strip else i.heb for i in self.data[:-1]]
+        )
 
     def __repr__(self):
-        return 'Chunk({!r})'.format(self.data)
+        return "Chunk({!r})".format(self.data)
 
-    @reify
+    @property
+    def base(self):
+        return self.data[-1]
+
+    def basemerge(self, rebase: dr.ReplacementList, with_prefix=False):
+        base = self.base
+        maybe_hyphenate = True
+        if with_prefix:
+            prefix = dr.get_self_rep(self.data[0].split[0])
+        else:
+            prefix = self.prefix_gen()
+            if base.split[0]:
+                prefix += dr.get_self_rep(base.split[0])
+                maybe_hyphenate = False
+        if prefix and maybe_hyphenate:
+            rebase = hyphenate(rebase)
+        end = dr.get_self_rep(base.split[2])
+        return dr.add_rlists((prefix, rebase, end))
+
+    @libaaron.reify
     def stripped_heb(self):
         return self.replist_gen(strip=True)
 
-    @reify
+    @libaaron.reify
     def heb(self):
         return self.replist_gen(strip=False)
 
-    @reify
+    @libaaron.reify
     def linked_heb(self):
         return LinkedReplist(
             self.stripped_heb, self.heb, self[-1].stripped_heb)
@@ -371,7 +372,7 @@ class Chunk(collections.UserList):
             if str(rep) == selected:
                 break
         full = self.heb[i]
-        base = self.data[-1].stripped_heb[i]
+        base = self.base.stripped_heb[i]
         return base, full
 
     def get_match(self, word):
@@ -384,14 +385,11 @@ class Chunk(collections.UserList):
 def hyphenate(rep):
     rep = rep.copy()
     for i in range(len(rep)):
-        if rep.key == str(rep[i]) and rep.key != '':
-            rep.keyparts = ('-',) + rep.keyparts
-            rep[i] = (
-                deromanize.Replacement.new(0, '-', '')
-                +
-                deromanize.Replacement.new(
-                    rep[i].weight,  str(rep[i]), str(rep[i]))
-            )
+        if rep.key == str(rep[i]) and rep.key != "":
+            rep.keyparts = ("-",) + rep.keyparts
+            rep[i] = dr.Replacement.new(
+                0, "-", ""
+            ) + dr.Replacement.new(rep[i].weight, str(rep[i]), str(rep[i]))
     return rep
 
 
@@ -431,7 +429,7 @@ class Chunks(collections.UserList):
                     hebz.append(chunk.stripped_heb)
                 else:
                     hebz.append(chunk.heb)
-                if dec.sp == 'double':
+                if dec.sp == "double":
                     double_check_spelling(hebz[-1], dec.strip)
             elif chunk is maqef:
                 if not strip:
@@ -440,15 +438,15 @@ class Chunks(collections.UserList):
                 hebz.append(get_self_rep(chunk))
         return hebz
 
-    @reify
+    @libaaron.reify
     def stripped_heb(self):
         return self.get_heb(strip=True)
 
-    @reify
+    @libaaron.reify
     def heb(self):
         return self.get_heb(strip=False)
 
-    @reify
+    @libaaron.reify
     def linked_heb(self):
         return self.get_heb(strip=True, link=True)
 
@@ -477,25 +475,23 @@ class Chunks(collections.UserList):
 
 
 def coredecode(keys, word, spellcheck=False):
-    if word == '':
+    if word == "":
         return get_self_rep(word)
     # add aleph to words that begin with vowels.
-    vowels = keys.profile['vowels']
+    vowels = keys.profile["vowels"]
     if word[0] in vowels:
-        word = 'ʾ' + word
+        word = "ʾ" + word
     # remove doubled letters
     newword = word[0]
     for i, c in enumerate(word[1:]):
         i += 1
-        if c in vowels and word[i-1] in vowels:
+        if c in vowels and word[i - 1] in vowels:
             newword += "'" + c
-        elif c != word[i-1]:
+        elif c != word[i - 1]:
             newword += c
-    replist = deromanize.front_mid_end_decode(keys, newword)
+    replist = dr.front_mid_end_decode(keys, newword)
     if spellcheck:
-        for i in replist:
-            if not (hspell.check_word(str(i)) and hspell.linginfo(str(i))):
-                i.weight += 200
+        check_spelling(replist)
     replist.prune()
     return replist
 
@@ -504,7 +500,7 @@ def fix_numerals(int_str, gershayim=False):
     front, num, back = num_strip(int_str)
     length = len(num)
     if length > 3:
-        if num[0] == '5':
+        if num[0] == "5":
             num = num[1:]
         else:
             return get_self_rep(int_str)
@@ -515,13 +511,21 @@ def fix_numerals(int_str, gershayim=False):
         return get_self_rep(int_str)
 
     if not gershayim:
-        heb = heb.replace('״', '"')
+        heb = heb.replace("״", '"')
     if length >= 3:
-        return keygenerator.ReplacementList.new(
-            int_str, [front+heb+back, int_str])
+        return kg.ReplacementList.new(
+            int_str, [front + heb + back, int_str])
     else:
-        return keygenerator.ReplacementList.new(
-            int_str, [int_str, front+heb+back])
+        return kg.ReplacementList.new(
+            int_str, [int_str, front + heb + back])
+
+
+def check_spelling(replist):
+    # side effects
+    for r in replist:
+        heb = str(r)
+        if not (hspell.check_word(heb) and hspell.linginfo(heb)):
+            r.weight += 200
 
 
 def double_check_spelling(replist, strip_func):
@@ -538,14 +542,14 @@ def double_check_spelling(replist, strip_func):
     replist.sort()
 
 
-num_strip = deromanize.stripper_factory(('0123456789',))
+num_strip = dr.stripper_factory(("0123456789",))
 
 
-class FakeReplacementList(keygenerator.ReplacementList):
+class FakeReplacementList(kg.ReplacementList):
     pass
 
 
-maqef = FakeReplacementList.new('-', ['־'])
+maqef = FakeReplacementList.new("-", ["־"])
 maqef.heb = maqef
-maqef.stripped_heb = get_self_rep('')
-maqef.word = '-'
+maqef.stripped_heb = get_self_rep("")
+maqef.word = "-"

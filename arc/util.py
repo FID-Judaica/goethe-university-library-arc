@@ -2,9 +2,8 @@ import argparse
 import collections
 import json
 import sys
-import arc
 from arc import config
-from . import cacheutils
+from . import cacheutils as cu
 CFG = config.Config()
 
 
@@ -43,6 +42,7 @@ def main():
     add('--show-new', '-n', action='store_true',
         help='Show the corrected from of the word with LoC transliteration')
     add('--debug', '-d', action='store_true', help='show debugging info')
+    add('--cache', '-C', action='store_true', help='use the cached forms')
     add('--dictionary', nargs='*', type=lambda x: json.load(open(x)))
     add('--numbers', '-N', action='store_true', help='show "secret" numbers')
     add('--crop', '-c', type=int, default=0)
@@ -54,16 +54,11 @@ def main():
     args = ap.parse_args()
 
     if args.loc:
-        args.standard = 'loc'
+        args.standard = 'new'
 
-    if args.standard == 'old':
-        profile = CFG.get_profile('old')
-    elif args.standard in ['loc', 'new']:
-        profile = CFG.get_profile('new')
-    decoder = arc.Decoder(profile, fix_numerals=True, spellcheck=args.spelling)
-    set_reps = decoder.profile['to_new']['sets']
-    simple_reps = decoder.profile['to_new']['replacements']
-    get_loc = cacheutils.loc_converter_factory(simple_reps, set_reps)
+    decoder = CFG.from_schema(
+        args.standard, fix_numerals=True, spellcheck=args.spelling)
+
     if args.dictionary:
         dictionary = collections.Counter()
         for d in args.dictionary:
@@ -71,14 +66,22 @@ def main():
     else:
         dictionary = None
 
+    if args.cache:
+        cache, = CFG.get_caches('phonological')
+    else:
+        cache = None
+
     for t in map(str.rstrip, sys.stdin):
         print(t)
         print()
-        for word in decoder.decode(t, strip=False):
-            print(word.key)
-            print('-' * len(word.key))
-            word.prune()
-            use_dict(word, dictionary)
+        for chunk in decoder.make_chunks(t):
+            print(chunk.rom)
+            print('-' * len(chunk.rom))
+            if cache:
+                word = cu.match_cached(chunk, decoder, cache)
+            else:
+                word = chunk.heb
+            # use_dict(word, dictionary)
             if args.probabilites:
                 word.makestat()
             for i, w in enumerate(word):
@@ -87,9 +90,12 @@ def main():
                 items = []
                 items.append(str(w)[::-1] if args.reverse_heb else w)
                 if args.show_new:
-                    items.append(get_loc(w))
+                    items.append(decoder.get_loc(w))
                 if args.numbers:
-                    items.append(w.weight)
+                    items.append(
+                        '%.2f' % w.weight if isinstance(w.weight, float)
+                        else w.weight
+                    )
                 print(*items, sep='\t')
                 if args.debug:
                     atoms = [expand_kv(k, v) for k, v in w.keyvalue]

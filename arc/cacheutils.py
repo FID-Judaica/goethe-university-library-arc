@@ -18,9 +18,16 @@
 # this file under either the MPL or the EUPL.
 import re
 import unicodedata
-import arc.decode
+from . import decode
+import deromanize as dr
 from deromanize import cacheutils
 CacheObject, CacheDB = cacheutils.CacheObject, cacheutils.CacheDB
+NOCHECK = {'־', 'h', 'ה', '-', '։', ';'}
+try:
+    from HspellPy import Hspell
+    hspell = Hspell(linguistics=True)
+except ImportError:
+    hspell = None
 
 
 class FieldError(Exception):
@@ -72,8 +79,8 @@ def loc2phon(loc):
 def remove_prefixes(pairs):
     new = []
     for heb, loc in pairs:
-        _, heb, _ = arc.decode.double_junker(heb)
-        _, loc, _ = arc.decode.double_junker(loc)
+        _, heb, _ = decode.double_junker(heb)
+        _, loc, _ = decode.double_junker(loc)
         romlist = loc.split('-')
         newheb = heb[len(romlist)-1:]
         # if len(romlist) > 1:
@@ -90,12 +97,11 @@ def remove_prefixes(pairs):
 
 def matcher_factory(simple_reps, set_reps):
     get_loc = loc_converter_factory(simple_reps, set_reps)
-    nocheck = {'־', 'h', 'ה', '-', '։', ';'}
 
     def match_output(generated, submitted):
-        breaks = re.compile('[\s־]+')
-        submittedl = [i for i in breaks.split(submitted) if i not in nocheck]
-        generatedl = [i for i in generated if i.key not in nocheck]
+        breaks = re.compile(r'[\s־]+')
+        submittedl = [i for i in breaks.split(submitted) if i not in NOCHECK]
+        generatedl = [i for i in generated if i.key not in NOCHECK]
         if len(submittedl) != len(generatedl):
             raise FieldError("number of fields didn't match")
         else:
@@ -124,3 +130,76 @@ def form_builder_factory(simple_reps, set_reps):
         return matches
 
     return form_builder
+
+
+# get stuff out of the caches
+def collect_keys(rlist: dr.ReplacementList, decoder):
+    """returns a dictionary where each key is the phonological value of
+    replacements from a given replist. Each value is a dictionary. The keys of
+    these inner dictionaries have hebrew forms as keys and the original
+    Replacements as values.
+    """
+    loc_keys = {}
+    phon_keys = {}
+    for rep in rlist:
+        loc = decoder.get_loc(rep)
+        phon = loc2phon(loc)
+        loc_keys.setdefault(loc, {})[rep.str] = rep
+        phon_keys.setdefault(phon, {})[rep.str] = rep
+    return loc_keys, phon_keys
+
+
+def get_stats(rep_dict: dict, cached_vals: dict):
+    total = 0
+    cached_reps = []
+    others = []
+    for heb, count in cached_vals.items():
+        total += count
+        try:
+            new = rep_dict.pop(heb)
+            cached_reps.append((count, new))
+        except KeyError:
+            others.append((heb, count))
+
+    total += 1
+    new_reps = []
+    for count, rep in cached_reps:
+        rep.weight = 1 - count/total
+        new_reps.append(rep)
+    oldreps = [r.copy() for r in rep_dict.values()]
+    for r in oldreps:
+        r.weight += 1
+    new_reps += oldreps
+    return new_reps
+
+
+def get_newreps(keys, cache):
+    newreps = []
+    for k, rep_dict in keys.items():
+        cached = cache[k]
+        remixed = get_stats(rep_dict, cached)
+        newreps += remixed
+    return newreps
+
+
+def match_cached(
+        chunk,
+        decoder,
+        phon_cache=None,
+        loc_cache=None,
+        spelling_fallback=False
+) -> dr.ReplacementList:
+    rlist = chunk.base.stripped_heb
+    if rlist.key in NOCHECK:
+        return rlist
+    loc_keys, phon_keys = collect_keys(rlist, decoder)
+    newreps = get_newreps(phon_keys, phon_cache)
+
+    new_rlist = dr.ReplacementList(rlist.keyparts, newreps)
+    new_rlist.sort()
+    if spelling_fallback and all(isinstance(r.weight, int) for r in new_rlist):
+        for r in new_rlist:
+            heb = str(r)
+            if not (hspell.check_word(heb) and hspell.linginfo(heb)):
+                r.weight += 200
+    return chunk.basemerge(new_rlist)
