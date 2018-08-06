@@ -12,7 +12,6 @@ class Config(deromanize.Config):
 
     def from_schema(self, schema_name, *args, **kwargs):
         profile = self.loader(self.schemas[schema_name])
-        print(profile.get('fix_k'))
         return Decoder(profile, *args, fix_k=profile.get('fix_k'), **kwargs)
 
     def get_db(self):

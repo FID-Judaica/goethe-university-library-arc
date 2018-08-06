@@ -67,9 +67,7 @@ def main():
         dictionary = None
 
     if args.cache:
-        cache, = CFG.get_caches('phonological')
-    else:
-        cache = None
+        loccache, phoncache = CFG.get_caches('LOC/ALA', 'phonological')
 
     for t in map(str.rstrip, sys.stdin):
         print(t)
@@ -77,8 +75,8 @@ def main():
         for chunk in decoder.make_chunks(t):
             print(chunk.rom)
             print('-' * len(chunk.rom))
-            if cache:
-                word = cu.match_cached(chunk, decoder, cache)
+            if args.cache:
+                word = cu.match_cached(chunk, decoder, loccache, phoncache)
             else:
                 word = chunk.heb
             # use_dict(word, dictionary)

@@ -144,12 +144,22 @@ def collect_keys(rlist: dr.ReplacementList, decoder):
     for rep in rlist:
         loc = decoder.get_loc(rep)
         phon = loc2phon(loc)
-        loc_keys.setdefault(loc, {})[rep.str] = rep
-        phon_keys.setdefault(phon, {})[rep.str] = rep
+        loc_keys.setdefault(loc, {})[str(rep)] = rep
+        phon_keys.setdefault(phon, {})[str(rep)] = rep
     return loc_keys, phon_keys
 
 
-def get_stats(rep_dict: dict, cached_vals: dict):
+def ignore_seen(ignore, *dicts):
+    if ignore:
+        for heb in ignore:
+            for d in dicts:
+                try:
+                    del d[heb]
+                except KeyError:
+                    pass
+
+
+def get_stats(rep_dict: dict, cached_vals: dict, key):
     total = 0
     cached_reps = []
     others = []
@@ -159,47 +169,72 @@ def get_stats(rep_dict: dict, cached_vals: dict):
             new = rep_dict.pop(heb)
             cached_reps.append((count, new))
         except KeyError:
-            others.append((heb, count))
+            others.append((count, heb))
 
-    total += 1
-    new_reps = []
+    matched = []
     for count, rep in cached_reps:
-        rep.weight = 1 - count/total
-        new_reps.append(rep)
-    oldreps = [r.copy() for r in rep_dict.values()]
-    for r in oldreps:
-        r.weight += 1
-    new_reps += oldreps
-    return new_reps
+        rep.weight = (count / total) / 2 + rep.weight/2
+        matched.append(rep)
+    unmatched = [
+        dr.StatRep.new(count/total, heb, key) for count, heb in others]
+    uncached = list(rep_dict.values())
+    return matched, unmatched, uncached
 
 
-def get_newreps(keys, cache):
-    newreps = []
+def get_newreps(keys, cache, ignore=None):
+    matched = []
+    unmatched = []
+    uncached = []
     for k, rep_dict in keys.items():
         cached = cache[k]
-        remixed = get_stats(rep_dict, cached)
-        newreps += remixed
-    return newreps
+        ignore_seen(ignore, rep_dict, cached)
+        m, um, uc = get_stats(rep_dict, cached, k)
+        matched += m
+        unmatched += um
+        uncached += uc
+    return matched, unmatched, uncached
 
 
 def match_cached(
         chunk,
         decoder,
-        phon_cache=None,
-        loc_cache=None,
+        loc_cache,
+        phon_cache,
         spelling_fallback=False
 ) -> dr.ReplacementList:
-    rlist = chunk.base.stripped_heb
-    if rlist.key in NOCHECK:
-        return rlist
-    loc_keys, phon_keys = collect_keys(rlist, decoder)
-    newreps = get_newreps(phon_keys, phon_cache)
+    if not isinstance(chunk, decode.Chunk):
+        return chunk
 
-    new_rlist = dr.ReplacementList(rlist.keyparts, newreps)
-    new_rlist.sort()
-    if spelling_fallback and all(isinstance(r.weight, int) for r in new_rlist):
-        for r in new_rlist:
+    rlist = chunk.base.stripped_heb.makestat()
+    if rlist.key in NOCHECK or len(rlist.key) == 1:
+        return chunk.heb
+    for rep in rlist:
+        try:
+            int(str(rep))
+            return chunk.heb
+        except ValueError:
+            pass
+
+    loc_keys, phon_keys = collect_keys(rlist, decoder)
+    matchedloc, unmatchedloc, _ = get_newreps(loc_keys, loc_cache)
+    ignore = [str(r) for r in matchedloc]
+    ignore += [str(r) for r in unmatchedloc]
+    matchedphon, unmatchedphon, uncached = get_newreps(
+        phon_keys, phon_cache, ignore)
+    cached = []
+    for reps in (matchedloc, unmatchedloc, matchedphon, unmatchedphon):
+        reps.sort(key=lambda r: r.weight, reverse=True)
+        cached.extend(reps)
+
+    if spelling_fallback:
+        for r in uncached:
+            r.weight /= 2
             heb = str(r)
-            if not (hspell.check_word(heb) and hspell.linginfo(heb)):
-                r.weight += 200
+            try:
+                if not (hspell.check_word(heb) and hspell.linginfo(heb)):
+                    r.weight /= 100
+            except UnicodeEncodeError:
+                pass
+    uncached.sort(key=lambda r: r.weight, reverse=True)
+    new_rlist = dr.ReplacementList(rlist.keyparts, cached + uncached)
     return chunk.basemerge(new_rlist)

@@ -65,7 +65,9 @@ class Decoder:
             self.strip = strip_func
         else:
             self.strip = dr.stripper_factory(
-                profile["vowels"].items(), profile["consonants"].items()
+                profile["vowels"].items(),
+                profile["consonants"].items(),
+                '0123456789'
             )
 
         self.fix_k = mk_k_fixer(profile["vowels"]) if fix_k else None
@@ -136,6 +138,7 @@ class Decoder:
             else:
                 return False
         except KeyError:
+            return part in self.profile['other_prefixes']
             return False
 
 
@@ -382,15 +385,19 @@ class Chunk(collections.UserList):
         return hash(tuple(self.data))
 
 
-def hyphenate(rep):
-    rep = rep.copy()
-    for i in range(len(rep)):
-        if rep.key == str(rep[i]) and rep.key != "":
-            rep.keyparts = ("-",) + rep.keyparts
-            rep[i] = dr.Replacement.new(
-                0, "-", ""
-            ) + dr.Replacement.new(rep[i].weight, str(rep[i]), str(rep[i]))
-    return rep
+def hyphenate(rlist):
+    rlist = rlist.copy()
+    if isinstance(rlist[0], dr.StatRep):
+        weight = 1
+    else:
+        weight = 0
+    for i in range(len(rlist)):
+        rep = rlist[i]
+        if rlist.key == str(rep) and rlist.key != "":
+            rlist.keyparts = ("-",) + rlist.keyparts
+            rlist[i] = (
+                rep.new(weight, "-", "") + type(rep)(rep.weight, rep.keyvalue))
+    return rlist
 
 
 class Chunks(collections.UserList):
