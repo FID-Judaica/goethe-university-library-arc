@@ -19,5 +19,7 @@ setup(
         'filtermaker',
         'deromanize',
         'PyYaml',
-        'sqlalchemy',],
+        'sqlalchemy',
+        'libaaron',
+    ],
 )
