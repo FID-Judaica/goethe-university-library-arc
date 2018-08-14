@@ -142,14 +142,16 @@ def collect_keys(rlist: dr.ReplacementList, decoder):
     loc_keys = {}
     phon_keys = {}
     for rep in rlist:
+        heb = str(rep)
         loc = decoder.get_loc(rep)
         phon = loc2phon(loc)
-        loc_keys.setdefault(loc, {})[str(rep)] = rep
-        phon_keys.setdefault(phon, {})[str(rep)] = rep
+        loc_keys.setdefault(loc, {})[heb] = rep
+        phon_keys.setdefault(phon, {})[heb] = rep
     return loc_keys, phon_keys
 
 
 def ignore_seen(ignore, *dicts):
+    # side effects!!
     if ignore:
         for heb in ignore:
             for d in dicts:
@@ -206,7 +208,7 @@ def match_cached(
         return chunk
 
     rlist = chunk.base.stripped_heb.makestat()
-    if rlist.key in NOCHECK or len(rlist.key) == 1:
+    if rlist.key in NOCHECK or len(rlist.key) <= 1:
         return chunk.heb
     for rep in rlist:
         try:

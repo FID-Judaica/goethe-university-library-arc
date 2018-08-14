@@ -138,8 +138,8 @@ class Decoder:
             else:
                 return False
         except KeyError:
-            return part in self.profile['other_prefixes']
-            return False
+            others = self.profile.get('other_prefixes')
+            return bool(others and part in others)
 
 
 def cleanline(line):
@@ -157,6 +157,7 @@ def cleanline(line):
         line = re.sub(r"^ha\w{0,2}- *@", "h @", line)
 
     line = re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
+    line = line.replace('ʼ', "'")
 
     return line
 
@@ -339,7 +340,14 @@ class Chunk(collections.UserList):
     def base(self):
         return self.data[-1]
 
-    def basemerge(self, rebase: dr.ReplacementList, with_prefix=False):
+    def basemerge(
+            self,
+            rebase: dr.ReplacementList,
+            with_prefix=False,
+            gershayim=True
+    ):
+        if gershayim:
+            rebase = dr.fix_gershayim_late(rebase)
         base = self.base
         maybe_hyphenate = True
         if with_prefix:
@@ -347,7 +355,7 @@ class Chunk(collections.UserList):
         else:
             prefix = self.prefix_gen()
             if base.split[0]:
-                prefix += dr.get_self_rep(base.split[0])
+                prefix = prefix + dr.get_self_rep(base.split[0])
                 maybe_hyphenate = False
         if prefix and maybe_hyphenate:
             rebase = hyphenate(rebase)
