@@ -158,7 +158,6 @@ def cleanline(line):
 
     line = re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
     line = line.replace('ʼ', "'")
-
     return line
 
 
@@ -500,9 +499,7 @@ def coredecode(keys, word, spellcheck=False):
     newword = word[0]
     for i, c in enumerate(word[1:]):
         i += 1
-        if c in vowels and word[i - 1] in vowels:
-            newword += "'" + c
-        elif c != word[i - 1]:
+        if c != word[i - 1]:
             newword += c
     replist = dr.front_mid_end_decode(keys, newword)
     if spellcheck:

@@ -79,7 +79,7 @@ class ArcDB(pica_parse.db.PicaDB):
         self.session.add(Checked(ppn=ppn, words=words, errors=errors,
                                  corrected=submitted or None))
         if errors:
-            self.session.query(Change).filter(ppn=ppn).delete()
+            self.session.query(Change).filter(Change.ppn == ppn).delete()
             self.session.add_all(
                 Change(ppn=ppn, suggested=w[0], corrected=w[1])
                 for w in badwords)

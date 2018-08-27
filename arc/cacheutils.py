@@ -208,12 +208,13 @@ def match_cached(
         return chunk
 
     rlist = chunk.base.stripped_heb.makestat()
-    if rlist.key in NOCHECK or len(rlist.key) <= 1:
-        return chunk.heb
-    for rep in rlist:
+    key = rlist.key
+    if key == str(rlist[0]) or key in NOCHECK or len(key) <= 1:
+        return dr.fix_gershayim_late(chunk.heb)
+    for rep in rlist[:10]:
         try:
             int(str(rep))
-            return chunk.heb
+            return dr.fix_gershayim_late(chunk.heb)
         except ValueError:
             pass
 
