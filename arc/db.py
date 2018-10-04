@@ -17,8 +17,10 @@
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
 import re
+import pica_parse
 import pica_parse.db
 import sqlalchemy as sa
+import collections
 breaks = re.compile(r'[\s־]+')
 nocheck = {'־', 'ה', '-', '։', ';'}
 
@@ -38,6 +40,7 @@ CREATE VIEW IF NOT EXISTS `title_totals` AS
                 as float) as titles,
            cast((select count(ppn) from checked where errors = 0)
                 as float) as clean;'''
+Field = pica_parse.db.Field
 
 
 class Checked(pica_parse.db.Base):
@@ -57,6 +60,10 @@ class Change(pica_parse.db.Base):
     ppn = sa.Column(sa.String, sa.ForeignKey('checked.ppn'), index=True)
     suggested = sa.Column(sa.String)
     corrected = sa.Column(sa.String)
+
+
+AuditView = collections.namedtuple(
+    'AuditView', 'ppn, suggested, corrected, field')
 
 
 class ArcDB(pica_parse.db.PicaDB):
@@ -97,6 +104,23 @@ class ArcDB(pica_parse.db.PicaDB):
         else:
             title = maintitle
         return title
+
+    def audit(self):
+        query = self.session\
+                    .query(Change, Field)\
+                    .filter(Change.ppn == Field.ppn, Field.field == '021A')\
+                    .order_by(Change.suggested)
+
+        for change, field in query:
+            field = pica_parse.PicaField('021A', field.content, 'ƒ')
+            if field.get_one('U', '') == 'hebr':
+                continue
+            yield AuditView(
+                change.ppn,
+                change.suggested,
+                change.corrected,
+                field
+            )
 
 
 def diff_output(generated, submitted):
