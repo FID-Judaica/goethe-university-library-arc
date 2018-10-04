@@ -561,7 +561,8 @@ class FakeReplacementList(kg.ReplacementList):
     pass
 
 
-maqef = FakeReplacementList.new("-", ["־"])
+# maqef = FakeReplacementList.new("-", ["־"])
+maqef = FakeReplacementList.new("-", ["-"])
 maqef.heb = maqef
 maqef.stripped_heb = get_self_rep("")
 maqef.word = "-"
