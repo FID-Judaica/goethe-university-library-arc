@@ -21,10 +21,11 @@ import pica_parse
 import pica_parse.db
 import sqlalchemy as sa
 import collections
-breaks = re.compile(r'[\s־]+')
-nocheck = {'־', 'ה', '-', '։', ';'}
 
-SQLite_VIEWS = '''\
+breaks = re.compile(r"[\s־]+")
+nocheck = {"־", "ה", "-", "։", ";"}
+
+SQLite_VIEWS = """\
 CREATE VIEW If NOT EXISTS `audit` AS
     SELECT c.ppn, records.content, c.suggested, c.corrected
     FROM changes AS c
@@ -39,31 +40,32 @@ CREATE VIEW IF NOT EXISTS `title_totals` AS
     select cast((select count(ppn) from checked)
                 as float) as titles,
            cast((select count(ppn) from checked where errors = 0)
-                as float) as clean;'''
+                as float) as clean;"""
 Field = pica_parse.db.Field
 
 
 class Checked(pica_parse.db.Base):
-    __tablename__ = 'checked'
+    __tablename__ = "checked"
 
     id = sa.Column(sa.Integer, primary_key=True)
-    ppn = sa.Column(sa.String, sa.ForeignKey('records.ppn'), index=True)
+    ppn = sa.Column(sa.String, sa.ForeignKey("records.ppn"), index=True)
     words = sa.Column(sa.Integer)
     errors = sa.Column(sa.Integer, index=True)
     corrected = sa.Column(sa.String)
 
 
 class Change(pica_parse.db.Base):
-    __tablename__ = 'changes'
+    __tablename__ = "changes"
 
     id = sa.Column(sa.Integer, primary_key=True)
-    ppn = sa.Column(sa.String, sa.ForeignKey('checked.ppn'), index=True)
+    ppn = sa.Column(sa.String, sa.ForeignKey("checked.ppn"), index=True)
     suggested = sa.Column(sa.String)
     corrected = sa.Column(sa.String)
 
 
 AuditView = collections.namedtuple(
-    'AuditView', 'ppn, suggested, corrected, field')
+    "AuditView", "ppn, suggested, corrected, field"
+)
 
 
 class ArcDB(pica_parse.db.PicaDB):
@@ -73,6 +75,7 @@ class ArcDB(pica_parse.db.PicaDB):
     It also has facilities for adding verified normalizations into the
     database.
     """
+
     def __init__(self, sqlachemy_url):
         """database queries for pica records.
 
@@ -83,43 +86,48 @@ class ArcDB(pica_parse.db.PicaDB):
 
     def add_input(self, ppn, generated, submitted):
         words, errors, badwords = diff_output(generated, submitted)
-        self.session.add(Checked(ppn=ppn, words=words, errors=errors,
-                                 corrected=submitted or None))
+        self.session.add(
+            Checked(
+                ppn=ppn,
+                words=words,
+                errors=errors,
+                corrected=submitted or None,
+            )
+        )
         if errors:
             self.session.query(Change).filter(Change.ppn == ppn).delete()
             self.session.add_all(
                 Change(ppn=ppn, suggested=w[0], corrected=w[1])
-                for w in badwords)
+                for w in badwords
+            )
 
     def get_title(self, ppn):
-        fields = self[ppn, '021A']
+        fields = self[ppn, "021A"]
         for field in fields:
-            lang = field.get('U')
-            if lang is None or lang == 'Latn':
-                maintitle = field.get('a')
+            lang = field.get("U")
+            if lang is None or lang == "Latn":
+                maintitle = field.get("a")
                 break
-        subtitle = field.get('d')
+        subtitle = field.get("d")
         if subtitle:
-            title = maintitle + ' ։ ' + subtitle
+            title = maintitle + " ։ " + subtitle
         else:
             title = maintitle
         return title
 
     def audit(self):
-        query = self.session\
-                    .query(Change, Field)\
-                    .filter(Change.ppn == Field.ppn, Field.field == '021A')\
-                    .order_by(Change.suggested)
+        query = (
+            self.session.query(Change, Field)
+            .filter(Change.ppn == Field.ppn, Field.field == "021A")
+            .order_by(Change.suggested)
+        )
 
         for change, field in query:
-            field = pica_parse.PicaField('021A', field.content, 'ƒ')
-            if field.get_one('U', '') == 'hebr':
+            field = pica_parse.PicaField("021A", field.content, "ƒ")
+            if field.get_one("U", "") == "hebr":
                 continue
             yield AuditView(
-                change.ppn,
-                change.suggested,
-                change.corrected,
-                field
+                change.ppn, change.suggested, change.corrected, field
             )
 
 

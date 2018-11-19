@@ -3,7 +3,8 @@ from . import Decoder
 from arc.db import ArcDB
 import deromanize
 import pica_parse
-CACHE_NAMES = 'DIN1982', 'LOC/ALA', 'phonological'
+
+CACHE_NAMES = "DIN1982", "LOC/ALA", "phonological"
 
 
 class Config(deromanize.Config):
@@ -14,7 +15,7 @@ class Config(deromanize.Config):
 
     def from_schema(self, schema_name, *args, **kwargs):
         profile = self.loader(self.schemas[schema_name])
-        return Decoder(profile, *args, fix_k=profile.get('fix_k'), **kwargs)
+        return Decoder(profile, *args, fix_k=profile.get("fix_k"), **kwargs)
 
     def get_db(self):
         return ArcDB("sqlite:///" + str(self.db_path))

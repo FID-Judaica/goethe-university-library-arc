@@ -21,10 +21,12 @@ import unicodedata
 from . import decode
 import deromanize as dr
 from deromanize import cacheutils
+
 CacheObject, CacheDB = cacheutils.CacheObject, cacheutils.CacheDB
-NOCHECK = {'־', 'h', 'ה', '-', '։', ';'}
+NOCHECK = {"־", "h", "ה", "-", "։", ";"}
 try:
     from HspellPy import Hspell
+
     hspell = Hspell(linguistics=True)
 except ImportError:
     hspell = None
@@ -40,8 +42,9 @@ class NoMatch(Exception):
         self.heb = heb
 
     def __str__(self):
-        return "{!r} couldn't be deromanized to match {!r}". \
-            format(self.replist.key, self.heb)
+        return "{!r} couldn't be deromanized to match {!r}".format(
+            self.replist.key, self.heb
+        )
 
 
 def loc_converter_factory(simple_reps, set_reps):
@@ -49,30 +52,31 @@ def loc_converter_factory(simple_reps, set_reps):
 
     def get_loc(rep):
         flat_vowels = cacheutils.strip_chars(rep.keyvalue)
-        loc = ''.join((i[0] for i in replace(flat_vowels)))
+        loc = "".join((i[0] for i in replace(flat_vowels)))
         if len(loc) > 1:
-            if loc[0] == 'ʾ':
+            if loc[0] == "ʾ":
                 loc = loc[1:]
-            if loc[-1] == 'ʾ':
+            if loc[-1] == "ʾ":
                 loc = loc[:-1]
-            loc = loc.replace('-ʾ', '-')
+            loc = loc.replace("-ʾ", "-")
         return loc
 
     return get_loc
 
 
 def loc2phon(loc):
-    vowels = 'ieaou'
-    gstops = {'ʿ', 'ʾ'}
-    phon = loc.replace('ḥ', 'ch').replace('kh', 'ch')
-    if phon[-1] == 'h' and phon[-2:-1] in vowels:
+    vowels = "ieaou"
+    gstops = {"ʿ", "ʾ"}
+    phon = loc.replace("ḥ", "ch").replace("kh", "ch")
+    if phon[-1] == "h" and phon[-2:-1] in vowels:
         phon = phon[:-1]
-    phon = ''.join(
-        c for c in unicodedata.normalize('NFD', phon)
-        if unicodedata.category(c)[0] == 'L' and c not in gstops
+    phon = "".join(
+        c
+        for c in unicodedata.normalize("NFD", phon)
+        if unicodedata.category(c)[0] == "L" and c not in gstops
     )
     for v in vowels:
-        phon = phon.replace(v+v, v+"'"+v)
+        phon = phon.replace(v + v, v + "'" + v)
     return phon
 
 
@@ -81,15 +85,15 @@ def remove_prefixes(pairs):
     for heb, loc in pairs:
         _, heb, _ = decode.double_junker(heb)
         _, loc, _ = decode.double_junker(loc)
-        romlist = loc.split('-')
-        newheb = heb[len(romlist)-1:]
+        romlist = loc.split("-")
+        newheb = heb[len(romlist) - 1 :]
         # if len(romlist) > 1:
         #     print(romlist[-1], newheb)
         loc = romlist[-1]
         if len(loc) > 1:
-            if loc[0] == 'ʾ':
+            if loc[0] == "ʾ":
                 loc = loc[1:]
-            if loc[-1] == 'ʾ':
+            if loc[-1] == "ʾ":
                 loc = loc[-1]
         new.append([newheb, loc])
     return new
@@ -99,7 +103,7 @@ def matcher_factory(simple_reps, set_reps):
     get_loc = loc_converter_factory(simple_reps, set_reps)
 
     def match_output(generated, submitted):
-        breaks = re.compile(r'[\s־]+')
+        breaks = re.compile(r"[\s־]+")
         submittedl = [i for i in breaks.split(submitted) if i not in NOCHECK]
         generatedl = [i for i in generated if i.key not in NOCHECK]
         if len(submittedl) != len(generatedl):
@@ -175,10 +179,11 @@ def get_stats(rep_dict: dict, cached_vals: dict, key):
 
     matched = []
     for count, rep in cached_reps:
-        rep.weight = (count / total) / 2 + rep.weight/2
+        rep.weight = (count / total) / 2 + rep.weight / 2
         matched.append(rep)
     unmatched = [
-        dr.StatRep.new(count/total, heb, key) for count, heb in others]
+        dr.StatRep.new(count / total, heb, key) for count, heb in others
+    ]
     uncached = list(rep_dict.values())
     return matched, unmatched, uncached
 
@@ -198,11 +203,7 @@ def get_newreps(keys, cache, ignore=None):
 
 
 def match_cached(
-        chunk,
-        decoder,
-        loc_cache,
-        phon_cache,
-        spelling_fallback=False
+    chunk, decoder, loc_cache, phon_cache, spelling_fallback=False
 ) -> dr.ReplacementList:
     if not isinstance(chunk, decode.Chunk):
         return chunk
@@ -223,7 +224,8 @@ def match_cached(
     ignore = [str(r) for r in matchedloc]
     ignore += [str(r) for r in unmatchedloc]
     matchedphon, unmatchedphon, uncached = get_newreps(
-        phon_keys, phon_cache, ignore)
+        phon_keys, phon_cache, ignore
+    )
     cached = []
     for reps in (matchedloc, unmatchedloc, matchedphon, unmatchedphon):
         reps.sort(key=lambda r: r.weight, reverse=True)

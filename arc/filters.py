@@ -28,38 +28,37 @@ SING_QUOTE = r"(\W|^)'\w.*?[\w.]'(\W|$)"
 DUB_QUOTE = r'(\W|^)"\w.*?[\w.]"(\W|$)'
 
 
-OLD_CHARS = set('ʾʿăaāâbdĕeēêfghḥiîkḵlmnŏoōôpqrsṣśštṭuûvwyz')
-NEW_CHARS = set('ʾʿabdefghḥikḳlmnoprsśtṭuvṿyz')
+OLD_CHARS = set("ʾʿăaāâbdĕeēêfghḥiîkḵlmnŏoōôpqrsṣśštṭuûvwyz")
+NEW_CHARS = set("ʾʿabdefghḥikḳlmnoprsśtṭuvṿyz")
 
 # all characters possible in transliteration
 ALL_CHARS = NEW_CHARS | OLD_CHARS
 
 # all transliteration character which are not in ascii
 ALL_SPECIAL = ALL_CHARS - set(string.ascii_lowercase)
-SPECIAL_NO_CIRCUMFLEX = ALL_SPECIAL - set('âêîôû')
+SPECIAL_NO_CIRCUMFLEX = ALL_SPECIAL - set("âêîôû")
 EXCLUSIVE_TO_OLD = OLD_CHARS - NEW_CHARS
 EXCLUSIVE_TO_NEW = NEW_CHARS - OLD_CHARS
 
-VOWEL_SET = set('ăaāâĕeēêiîŏoōôuû')
-DIACRITIC_VOWELS = VOWEL_SET - set('aeiou')
+VOWEL_SET = set("ăaāâĕeēêiîŏoōôuû")
+DIACRITIC_VOWELS = VOWEL_SET - set("aeiou")
 CONSONANT_SET = ALL_CHARS - VOWEL_SET
-CONSONANTS = ''.join(CONSONANT_SET)
+CONSONANTS = "".join(CONSONANT_SET)
 
-NEW_DIGRAPHS = {'kh', 'sh', 'ts'}
-UNDIGRAPHS = {"k'h", "s'h", "t's",
-              "tʹs", "kʹh", "sʹh"}
+NEW_DIGRAPHS = {"kh", "sh", "ts"}
+UNDIGRAPHS = {"k'h", "s'h", "t's", "tʹs", "kʹh", "sʹh"}
 
 # These characters should never appear in Hebrew transliteration.
-BAD_CHARS = set('īūjě')
+BAD_CHARS = set("īūjě")
 
 BAD_WITH_OLD = BAD_CHARS | OLD_CHARS
 
 # ō should only appear at the ends of words or in personal names. It's not
 # illegal, but it's very suspicious. short /u/ is also suspicious.
-SHORT_U = 'u'
-UNMARKED_LONG_O = r'ō\w'
+SHORT_U = "u"
+UNMARKED_LONG_O = r"ō\w"
 
-NON_HEB = r'''(?x)
+NON_HEB = r"""(?x)
     # search certain words
     \b
     (a|der|di|des|de|dos|das|dem|in|der|zi|von|
@@ -68,34 +67,34 @@ NON_HEB = r'''(?x)
 
     \bth|au|ao|ae|aa|oe|pf|
     ei|ie|ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
-    '''
-YIDDISH_ENDING = '['+''.join(CONSONANT_SET-{'y'})+']n(\s|$)'
-ENGLISH_Y = '['+CONSONANTS+']y(\s|$)'
-ARABIC_ARTICLE = '(\W|^)al-[^p]'
-LONG_IN_CLOSED = '[îīûūôōêē][' + CONSONANTS + ']{2}'
+    """
+YIDDISH_ENDING = "[" + "".join(CONSONANT_SET - {"y"}) + "]n(\s|$)"
+ENGLISH_Y = "[" + CONSONANTS + "]y(\s|$)"
+ARABIC_ARTICLE = "(\W|^)al-[^p]"
+LONG_IN_CLOSED = "[îīûūôōêē][" + CONSONANTS + "]{2}"
 
 
 # # The actual tests that are used on the line # #
 fs = filtermaker.get_filterspace()
 
-fs.haschars(ALL_SPECIAL, 'transliteration')
-fs.haschars(SPECIAL_NO_CIRCUMFLEX, 'trans_no_circum')
-fs.haschars(EXCLUSIVE_TO_OLD, 'old')
-fs.haschars(BAD_CHARS, 'bad')
-fs.haschars(SHORT_U, 'short_u')
-fs.haschars(DIACRITIC_VOWELS, 'diacritic_vowels')
+fs.haschars(ALL_SPECIAL, "transliteration")
+fs.haschars(SPECIAL_NO_CIRCUMFLEX, "trans_no_circum")
+fs.haschars(EXCLUSIVE_TO_OLD, "old")
+fs.haschars(BAD_CHARS, "bad")
+fs.haschars(SHORT_U, "short_u")
+fs.haschars(DIACRITIC_VOWELS, "diacritic_vowels")
 
-fs.hascluster(NEW_DIGRAPHS, 'new_digraphs')
-fs.hascluster(UNDIGRAPHS, 'undigraphs')
+fs.hascluster(NEW_DIGRAPHS, "new_digraphs")
+fs.hascluster(UNDIGRAPHS, "undigraphs")
 
-fs.onlycharset(OLD_CHARS, 'only_old'),
-fs.onlycharset(NEW_CHARS, 'only_new')
-fs.onlycharset(BAD_WITH_OLD, 'only_bad_and_old')
+fs.onlycharset(OLD_CHARS, "only_old"),
+fs.onlycharset(NEW_CHARS, "only_new")
+fs.onlycharset(BAD_WITH_OLD, "only_bad_and_old")
 
-fs.hasregex(NON_HEB, 'foreign')
-fs.hasregex(YIDDISH_ENDING, 'yiddish_ending')
-fs.hasregex(ARABIC_ARTICLE, 'arabic_article')
-fs.hasregex(ENGLISH_Y, 'english_y')
+fs.hasregex(NON_HEB, "foreign")
+fs.hasregex(YIDDISH_ENDING, "yiddish_ending")
+fs.hasregex(ARABIC_ARTICLE, "arabic_article")
+fs.hasregex(ENGLISH_Y, "english_y")
 
 
 @fs.register
@@ -110,7 +109,7 @@ def inner_dub_quote(line):
 
 @fs.register
 def unmarked_long_o(line):
-    proper = any(i in line for i in ('lōmō', 'yaʿaqōv', 'kōl', 'mōš'))
+    proper = any(i in line for i in ("lōmō", "yaʿaqōv", "kōl", "mōš"))
     return not proper and UNMARKED_LONG_O.search(line.data)
 
 
@@ -134,7 +133,7 @@ Line = fs.Filter
 ###################################################################
 
 
-DESCRIPTION = '''\
+DESCRIPTION = """\
 Filter input lines by properties (character sets and combinations):
 
 \t%s
@@ -144,23 +143,26 @@ Filter input lines by properties (character sets and combinations):
 transliteration but aren't part of the standard. "undigraphs" are some
 character combinations that the new standard uses to keep from
 representing digraphs\
-''' % '\n\t'.join(sorted(fs._tests))
+""" % "\n\t".join(
+    sorted(fs._tests)
+)
 
 
 class NameSpace(dict):
-    'namespace that imports modules lazily.'
+    "namespace that imports modules lazily."
+
     def __missing__(self, name):
         return __import__(name)
 
 
 def tester_maker(expression=None, namespace=None):
     if expression:
-        expr = compile(expression, 'string', 'eval')
+        expr = compile(expression, "string", "eval")
         namespace = NameSpace()
         namespace.update(__builtins__)
 
     def with_expression(line, required, forbidden):
-        namespace['line'] = line
+        namespace["line"] = line
         if required and not all(line.has(i) for i in required):
             return False
 
@@ -187,25 +189,38 @@ def tester_maker(expression=None, namespace=None):
 def main():
     import sys
     import argparse
+
     ap = argparse.ArgumentParser(
-            description=DESCRIPTION,
-            formatter_class=argparse.RawDescriptionHelpFormatter)
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     add = ap.add_argument
-    add('-r', '--required', default='',
-        help='comma-separated list of properties')
+    add(
+        "-r",
+        "--required",
+        default="",
+        help="comma-separated list of properties",
+    )
 
-    add('-f', '--forbidden', default='',
-        help='comma-separated list of properties to exclude')
+    add(
+        "-f",
+        "--forbidden",
+        default="",
+        help="comma-separated list of properties to exclude",
+    )
 
-    add('-e', '--expression',
-        help='a python expression which must evaluate to True in a boolean '
-        'context for the line to print. current line can be accessed with the '
-        'name `line`')
+    add(
+        "-e",
+        "--expression",
+        help="a python expression which must evaluate to True in a boolean "
+        "context for the line to print. current line can be accessed with the "
+        "name `line`",
+    )
 
     args = ap.parse_args()
-    required = set(args.required.split(',')) - {''}
-    forbidden = set(args.forbidden.split(',')) - {''}
+    required = set(args.required.split(",")) - {""}
+    forbidden = set(args.forbidden.split(",")) - {""}
     props = required | forbidden
 
     test = tester_maker(args.expression)
@@ -215,10 +230,10 @@ def main():
             for key, text in field.items():
                 if test(Line(text, *props), required, forbidden):
                     fields_of_interest.append(
-                            '{}.{}: {}'.format(field.id, key, text))
+                        "{}.{}: {}".format(field.id, key, text)
+                    )
         if fields_of_interest:
-            print(rec.ppn, *fields_of_interest, sep='\t')
-
+            print(rec.ppn, *fields_of_interest, sep="\t")
 
     # if args.pica:
     #     for record in pica_parse.file2records(sys.stdin):

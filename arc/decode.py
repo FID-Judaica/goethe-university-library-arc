@@ -26,6 +26,7 @@ from . import cacheutils
 
 try:
     from HspellPy import Hspell
+
     hspell = Hspell(linguistics=True)
 except ImportError:
     hspell = None
@@ -42,6 +43,7 @@ class NoMatch(Exception):
 
 class Decoder:
     """Decoder class for our catalogue standards."""
+
     def __init__(
         self,
         profile,
@@ -53,26 +55,30 @@ class Decoder:
         """Initialize with a deserialized profile from deromanize"""
         self.profile = profile
         self.joined_prefix = trees.Trie(
-            {i: i for i in profile["joined_prefixes"]})
+            {i: i for i in profile["joined_prefixes"]}
+        )
         self.prefix_vowels = set(profile["prefix_vowels"]) | {""}
         self.gem_prefix = trees.Trie({i: i for i in profile["gem_prefixes"]})
         self.keys = dr.KeyGenerator(profile)
         self.num = fix_numerals
         self.sp = spellcheck
-        self.w_kw = {"decoder": self,
-                     "fix_numerals": self.num, "spellcheck": self.sp}
+        self.w_kw = {
+            "decoder": self,
+            "fix_numerals": self.num,
+            "spellcheck": self.sp,
+        }
         if strip_func:
             self.strip = strip_func
         else:
             self.strip = dr.stripper_factory(
                 profile["vowels"].items(),
                 profile["consonants"].items(),
-                '0123456789'
+                "0123456789",
             )
 
         self.fix_k = mk_k_fixer(profile["vowels"]) if fix_k else None
-        set_reps = profile['to_new']['sets']
-        simple_reps = profile['to_new']['replacements']
+        set_reps = profile["to_new"]["sets"]
+        simple_reps = profile["to_new"]["replacements"]
         self.get_loc = cacheutils.loc_converter_factory(simple_reps, set_reps)
 
     def locandphon(self, rep):
@@ -138,7 +144,7 @@ class Decoder:
             else:
                 return False
         except KeyError:
-            others = self.profile.get('other_prefixes')
+            others = self.profile.get("other_prefixes")
             return bool(others and part in others)
 
 
@@ -157,7 +163,7 @@ def cleanline(line):
         line = re.sub(r"^ha\w{0,2}- *@", "h @", line)
 
     line = re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
-    line = line.replace('ʼ', "'")
+    line = line.replace("ʼ", "'")
     return line
 
 
@@ -314,7 +320,7 @@ class Chunk(collections.UserList):
 
     @property
     def rom(self):
-        return '-'.join(p.word for p in self)
+        return "-".join(p.word for p in self)
 
     def replist_gen(self, strip=False):
         prefix = self.prefix_gen(strip)
@@ -340,10 +346,7 @@ class Chunk(collections.UserList):
         return self.data[-1]
 
     def basemerge(
-            self,
-            rebase: dr.ReplacementList,
-            with_prefix=False,
-            gershayim=True
+        self, rebase: dr.ReplacementList, with_prefix=False, gershayim=True
     ):
         if gershayim:
             rebase = dr.fix_gershayim_late(rebase)
@@ -372,7 +375,8 @@ class Chunk(collections.UserList):
     @libaaron.reify
     def linked_heb(self):
         return LinkedReplist(
-            self.stripped_heb, self.heb, self[-1].stripped_heb)
+            self.stripped_heb, self.heb, self[-1].stripped_heb
+        )
 
     def groups(self):
         return self.linked_heb.groups()
@@ -402,8 +406,9 @@ def hyphenate(rlist):
         rep = rlist[i]
         if rlist.key == str(rep) and rlist.key != "":
             rlist.keyparts = ("-",) + rlist.keyparts
-            rlist[i] = (
-                rep.new(weight, "-", "") + type(rep)(rep.weight, rep.keyvalue))
+            rlist[i] = rep.new(weight, "-", "") + type(rep)(
+                rep.weight, rep.keyvalue
+            )
     return rlist
 
 
@@ -474,8 +479,9 @@ class Chunks(collections.UserList):
                 curword = next(word_iter)
                 if not curword:
                     raise NoMatch
-                stripped, full, base = chunk.get_match(
-                    curword)[word_counts[curword]][1]
+                stripped, full, base = chunk.get_match(curword)[
+                    word_counts[curword]
+                ][1]
                 word_counts[curword] += 1
 
                 reps.append(full)
@@ -525,11 +531,9 @@ def fix_numerals(int_str, gershayim=False):
     if not gershayim:
         heb = heb.replace("״", '"')
     if length >= 3:
-        return kg.ReplacementList.new(
-            int_str, [front + heb + back, int_str])
+        return kg.ReplacementList.new(int_str, [front + heb + back, int_str])
     else:
-        return kg.ReplacementList.new(
-            int_str, [int_str, front + heb + back])
+        return kg.ReplacementList.new(int_str, [int_str, front + heb + back])
 
 
 def check_spelling(replist):
