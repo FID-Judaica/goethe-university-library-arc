@@ -124,7 +124,7 @@ class ArcDB(pica_parse.db.PicaDB):
 
         for change, field in query:
             field = pica_parse.PicaField("021A", field.content, "ƒ")
-            if field.get_one("U", "") == "hebr":
+            if field.getone("U", "") == "hebr":
                 continue
             yield AuditView(
                 change.ppn, change.suggested, change.corrected, field

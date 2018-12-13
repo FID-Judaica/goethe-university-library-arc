@@ -68,9 +68,9 @@ NON_HEB = r"""(?x)
     \bth|au|ao|ae|aa|oe|pf|
     ei|ie|ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
     """
-YIDDISH_ENDING = "[" + "".join(CONSONANT_SET - {"y"}) + "]n(\s|$)"
-ENGLISH_Y = "[" + CONSONANTS + "]y(\s|$)"
-ARABIC_ARTICLE = "(\W|^)al-[^p]"
+YIDDISH_ENDING = "[" + "".join(CONSONANT_SET - {"y"}) + r"]n(\s|$)"
+ENGLISH_Y = "[" + CONSONANTS + r"]y(\s|$)"
+ARABIC_ARTICLE = r"(\W|^)al-[^p]"
 LONG_IN_CLOSED = "[îīûūôōêē][" + CONSONANTS + "]{2}"
 
 
