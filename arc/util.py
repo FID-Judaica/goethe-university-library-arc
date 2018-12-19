@@ -91,7 +91,7 @@ def main():
                 word = chunk.heb
             # use_dict(word, dictionary)
             if args.probabilites:
-                word.makestat()
+                word = word.makestat()
             for i, w in enumerate(word):
                 if args.crop and args.crop == i:
                     break
