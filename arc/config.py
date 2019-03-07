@@ -1,8 +1,11 @@
 from pathlib import Path
 from . import Decoder
+from . import cacheutils as cu
+from . import filters
 from arc.db import ArcDB
 import deromanize
 import pica_parse
+import libaaron
 
 CACHE_NAMES = "DIN1982", "LOC/ALA", "phonological"
 
@@ -22,3 +25,58 @@ class Config(deromanize.Config):
 
     def get_index(self):
         return pica_parse.PicaIndex.from_file(self.pica_path)
+
+
+class Session:
+    __slots__ = (
+        "config",
+        "decoders",
+        "caches",
+        "dicts",
+        "predicates",
+        "records",
+        "getloc",
+    )
+
+    def __init__(self, config: Config):
+        """
+
+        """
+        self.config = config
+        self.records = config.get_db()
+        self.caches = c = libaaron.DotDict()
+        c.din, c.loc, c.phon = self.config.get_caches(*CACHE_NAMES)
+        self.decoders = libaaron.DotDict()
+        self.dicts = libaaron.DotDict()
+        self.predicates = libaaron.DotDict()
+
+    @classmethod
+    def fromconfig(cls, path=None, loader=None):
+        return cls(Config(path=path, loader=loader))
+
+    def add_decoders(self, schema_names, *args, **kwargs):
+        for name in schema_names:
+            self.decoders[name] = d = self.config.from_schema(name)
+            if name == "old":
+                set_reps = d.profile["to_new"]["sets"]
+                simple_reps = d.profile["to_new"]["replacements"]
+                self.getloc = cu.loc_converter_factory(simple_reps, set_reps)
+
+    def pickdecoder(self, string: str):
+        line = filters.Line(string)
+        if line.has("only_new") or line.has("new_digraphs"):
+            return self.decoders.new
+        else:
+            return self.decoders.old
+
+    def getchunks(self, string: str):
+        decoder = self.pickdecoder(string)
+        return decoder.make_chunks(string)
+
+    def usecache(self, chunks, **kwargs):
+        decoder = chunks.decoder
+        loc, phon = self.caches.loc, self.caches.phon
+        words = []
+        for chunk in chunks:
+            words.append(cu.match_cached(chunk, decoder, loc, phon, **kwargs))
+        return words
