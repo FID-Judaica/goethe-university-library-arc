@@ -203,7 +203,7 @@ def get_newreps(keys, cache, ignore=None):
 
 
 def match_cached(
-    chunk, decoder, loc_cache, phon_cache, spelling_fallback=False
+        chunk, decoder, loc_cache, phon_cache, spelling_fallback=False, dictionary=None
 ) -> dr.ReplacementList:
     if not isinstance(chunk, decode.Chunk):
         return chunk
@@ -240,6 +240,15 @@ def match_cached(
                     r.weight /= 100
             except UnicodeEncodeError:
                 pass
+
+    elif dictionary:
+        for i, r in enumerate(uncached):
+            r.weight /= 2
+            heb = str(r)
+            match = dictionary.get(heb)
+            if not match:
+                r.weight /= 100
+
     uncached.sort(key=lambda r: r.weight, reverse=True)
     new_rlist = dr.ReplacementList(rlist.keyparts, cached + uncached)
     return chunk.basemerge(new_rlist)
