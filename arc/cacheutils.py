@@ -203,7 +203,12 @@ def get_newreps(keys, cache, ignore=None):
 
 
 def match_cached(
-        chunk, decoder, loc_cache, phon_cache, spelling_fallback=False, dictionary=None
+    chunk,
+    decoder,
+    loc_cache,
+    phon_cache,
+    spelling_fallback=False,
+    dictionary=None,
 ) -> dr.ReplacementList:
     if not isinstance(chunk, decode.Chunk):
         return chunk
