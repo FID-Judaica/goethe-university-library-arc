@@ -37,6 +37,7 @@ class Session:
         "records",
         "getloc",
     )
+    _sessions = {}
 
     def __init__(self, config: Config):
         """
@@ -52,15 +53,22 @@ class Session:
 
     @classmethod
     def fromconfig(cls, path=None, loader=None):
-        return cls(Config(path=path, loader=loader))
+        return cls._sessions.setdefault(
+            (path, loader), cls(Config(path=path, loader=loader))
+        )
 
-    def add_decoders(self, schema_names, *args, **kwargs):
-        for name in schema_names:
-            self.decoders[name] = d = self.config.from_schema(name)
-            if name == "old":
-                set_reps = d.profile["to_new"]["sets"]
-                simple_reps = d.profile["to_new"]["replacements"]
-                self.getloc = cu.loc_converter_factory(simple_reps, set_reps)
+    def add_decoder(self, name, *args, **kwargs):
+        d = self.decoders.setdefault(
+            name, self.config.from_schema(name, *args, **kwargs)
+        )
+        if name == "old" and not hasattr(self, "getloc"):
+            set_reps = d.profile["to_new"]["sets"]
+            simple_reps = d.profile["to_new"]["replacements"]
+            self.getloc = cu.loc_converter_factory(simple_reps, set_reps)
+
+    def add_decoders(self, names, *args, **kwargs):
+        for name in names:
+            self.add_decoder(name, *args, **kwargs)
 
     def pickdecoder(self, string: str):
         line = filters.Line(string)
