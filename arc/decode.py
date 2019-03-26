@@ -23,6 +23,7 @@ import deromanize as dr
 import libaaron
 from deromanize import trees, keygenerator as kg, get_self_rep
 from . import cacheutils
+from .matchprefix import matchprefix, Gem
 
 try:
     from HspellPy import Hspell
@@ -133,6 +134,17 @@ class Decoder:
 
     def checkprefix(self, i, inner, chunk):
         front, part, back = self.strip(inner)
+        # new:
+        # parts = matchprefix(part, dedup=False)
+        # if not parts:
+        #     return None
+        # if isinstance(end, Gem):
+        #     beginning, end = self.gem_prefix.getpart(part)
+        #     _, nextp, _ = self.strip(chunk[i + 1])
+        #     if nextp.startswith(part[0]):
+        #         return True
+
+        # old:
         try:
             beginning, end = self.joined_prefix.getpart(part)
             if end in self.prefix_vowels:
