@@ -65,10 +65,10 @@ class Session:
             set_reps = d.profile["to_new"]["sets"]
             simple_reps = d.profile["to_new"]["replacements"]
             self.getloc = cu.loc_converter_factory(simple_reps, set_reps)
+        return d
 
     def add_decoders(self, names, *args, **kwargs):
-        for name in names:
-            self.add_decoder(name, *args, **kwargs)
+        return [self.add_decoder(name, *args, **kwargs) for name in names]
 
     def pickdecoder(self, string: str):
         line = filters.Line(string)
