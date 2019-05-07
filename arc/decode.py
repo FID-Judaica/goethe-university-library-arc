@@ -23,7 +23,10 @@ import deromanize as dr
 import libaaron
 from deromanize import trees, keygenerator as kg, get_self_rep
 from . import cacheutils
-from .matchprefix import matchprefix, Gem
+from .matchprefix import prefixmatcherfactory
+import hebrew_numbers
+
+matchprefix = prefixmatcherfactory()
 
 try:
     from HspellPy import Hspell
@@ -31,7 +34,6 @@ try:
     hspell = Hspell(linguistics=True)
 except ImportError:
     hspell = None
-import hebrew_numbers
 
 
 class DecoderMismatch(Exception):
@@ -119,8 +121,9 @@ class Decoder:
                 continue
             new_chunk = Chunk()
             for i, inner in enumerate(chunk[:-1]):
-                if self.checkprefix(i, inner, chunk):
-                    new_chunk.append(Prefix(inner, self))
+                preparts = self.checkprefix(i, inner, chunk)
+                if preparts:
+                    new_chunk.extend(Prefix(p, self) for p in preparts)
                 else:
                     new_chunk.append(Word(inner, **self.w_kw))
                     remixed.extend([new_chunk, maqef])
@@ -134,30 +137,12 @@ class Decoder:
 
     def checkprefix(self, i, inner, chunk):
         front, part, back = self.strip(inner)
+        _, nextp, _ = self.strip(chunk[i + 1])
         # new:
-        # parts = matchprefix(part, dedup=False)
-        # if not parts:
-        #     return None
-        # if isinstance(end, Gem):
-        #     beginning, end = self.gem_prefix.getpart(part)
-        #     _, nextp, _ = self.strip(chunk[i + 1])
-        #     if nextp.startswith(part[0]):
-        #         return True
-
-        # old:
-        try:
-            beginning, end = self.joined_prefix.getpart(part)
-            if end in self.prefix_vowels:
-                return True
-            beginning, end = self.gem_prefix.getpart(part)
-            _, nextp, _ = self.strip(chunk[i + 1])
-            if nextp.startswith(end):
-                return True
-            else:
-                return False
-        except KeyError:
-            others = self.profile.get("other_prefixes")
-            return bool(others and part in others)
+        parts = matchprefix(part, nextp, dedup=False)
+        if not parts:
+            return None
+        return parts
 
 
 def cleanline(line):
@@ -580,5 +565,6 @@ class FakeReplacementList(kg.ReplacementList):
 # maqef = FakeReplacementList.new("-", ["־"])
 maqef = FakeReplacementList.new("-", ["-"])
 maqef.heb = maqef
+maqef.rom = "-"
 maqef.stripped_heb = get_self_rep("")
 maqef.word = "-"
