@@ -27,9 +27,9 @@ def prefixgen(cons, vowels, extra):
 
 
 def prefixmatcherfactory(
-    prefixvowels="iîeĕêa",
+    prefixvowels="iîeĕêaā",
     consvavs="wṿv",
-    vav_extra="uû",
+    vav_extra="uûū",
     shes=("she", "še", "šē"),
     prefixconsonants="k ḵ kh b v l".split(),
     no_gem_extra=("mē", "me", "hā"),
@@ -77,6 +77,8 @@ def prefixmatcherfactory(
         if not parts:
             return None
         if isinstance(parts[-1], Gem) and nextstr.startswith(string):
+            return parts
+        if not string:
             return parts
         return None
 

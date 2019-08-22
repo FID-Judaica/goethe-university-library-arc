@@ -146,7 +146,6 @@ class Decoder:
 
 
 def cleanline(line):
-
     if line[0] == "@":
         line = line[1:]
 
@@ -253,8 +252,6 @@ class Word:
 
 
 class Prefix(Word):
-    __slots__ = "word", "split", "keys", "num", "sp", "_stripped_heb", "_heb"
-
     @libaaron.cached
     def stripped_heb(self):
         front, rom, back = self.split

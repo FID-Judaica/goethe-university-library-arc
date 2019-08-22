@@ -50,16 +50,9 @@ class Config(deromanize.Config):
 
 
 class Session:
-    __slots__ = (
-        "config",
-        "decoders",
-        "caches",
-        "dicts",
-        "predicates",
-        "records",
-        "getloc",
-    )
+    __slots__ = ("config", "decoders", "caches", "records", "getloc")
     _sessions = {}
+    filters = filters
 
     def __init__(self, config: Config):
         """
@@ -70,22 +63,25 @@ class Session:
         self.caches = c = libaaron.DotDict()
         c.din, c.loc, c.phon = self.config.get_caches(*CACHE_NAMES)
         self.decoders = libaaron.DotDict()
-        self.dicts = libaaron.DotDict()
-        self.predicates = libaaron.DotDict()
 
     @classmethod
-    def fromconfig(cls, path=None, loader=None):
+    def fromconfig(cls, path=None, loader=None, CfgType=Config):
         """takes the same arguments as the ``Config`` initializer,
         constructs the config object and uses it to build a session.
         """
-        return cls._sessions.setdefault(
-            (path, loader), cls(Config(path=path, loader=loader))
-        )
+        s = cls._sessions.get((path, loader))
+        if not s:
+            s = cls._sessions[path, loader] = cls(
+                CfgType(path=path, loader=loader)
+            )
+        return s
 
     def add_decoder(self, name, *args, **kwargs):
-        decoder = self.decoders.setdefault(
-            name, self.config.from_schema(name, *args, **kwargs)
-        )
+        decoder = self.decoders.get(name)
+        if not decoder:
+            decoder = self.decoders[name] = self.config.from_schema(
+                name, *args, **kwargs
+            )
         if name == "old" and not hasattr(self, "getloc"):
             set_reps = decoder.profile["to_new"]["sets"]
             simple_reps = decoder.profile["to_new"]["replacements"]
@@ -97,7 +93,7 @@ class Session:
 
     def pickdecoder(self, string: str):
         line = filters.Line(string)
-        if line.has("only_new") or line.has("new_digraphs"):
+        if line.has("only_new"):
             return self.decoders.new
         return self.decoders.old
 
