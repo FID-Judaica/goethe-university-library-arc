@@ -7,7 +7,7 @@ import typing as t
 import string
 
 monograph = set("ac")
-namefields = "028A 028@ 028P".split()
+namefields = "028A 02@ 028P".split()
 
 # dummy argument for a kwarg where None is a possible user-supplied value
 noarg = object()
@@ -90,13 +90,6 @@ def getnameparts(subs):
     personal = subs.get("P")
     if personal:
         return (personal[0], "")
-
-
-def getnames(record):
-    for field in namefields:
-        field = record.get(field)
-        if field:
-            yield from map(getnameparts, field)
 
 
 def sortedfromfields(record, fieldnames):
@@ -237,3 +230,78 @@ def needs_conversion(record):
         return False
 
     return True
+
+
+def getpossiblenames(record, namedb):
+    nameppns = getnameppns(record)
+
+    def iternames():
+        for ppn in nameppns:
+            namesdict = namedb.get(ppn)
+            if namesdict:
+                for names in namesdict.values():
+                    yield from names
+
+    return set(n.lower() for n in iternames())
+
+
+def getdocyears(datestrings):
+    for datestring in datestrings:
+        for year in dt.date2years(datestring):
+            yield from dt.yearnorm(year)
+
+
+namestarts = "028 055".split()
+
+
+def getnamesfromwork(record):
+    namefields = []
+    for key in record.dict:
+        if key[:3] in namestarts:
+            namefields.append(key)
+
+    return sortedfromfields(record, namefields)
+
+
+def getnames(record, picanames):
+    ppns = set(getnameppns(record))
+    if not ppns:
+        return [getnamesfromwork(record)]
+
+    names = []
+    for ppn in ppns:
+        try:
+            authrecord = picanames[ppn]
+        except KeyError:
+            continue
+
+        transnames, othernames = getsortednames(authrecord)
+        if not transnames and not othernames:
+            continue
+        names.append((transnames, othernames))
+    if names:
+        return names
+    return [getnamesfromwork(record)]
+
+
+def prerank(chunks, session):
+    return session.usecache(chunks, dictionary=session.termdict)
+
+
+def getnamecomponents(record, session):
+    allnames = getnames(record)
+    output = set()
+    for transnames, nontrans in allnames:
+        for ln, fn in [*transnames, *nontrans]:
+            output.update(ln.split())
+            if fn:
+                output.update(fn.split())
+        for pair in transnames:
+            for name in pair:
+                if name:
+                    chunks = session.getchunks(name)
+                    rlists = prerank(chunks)
+                    output.update(str(rep) for rl in rlists for rep in rl)
+    output.discard("-")
+    output.discard("בן")
+    return output
