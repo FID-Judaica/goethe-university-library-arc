@@ -21,5 +21,8 @@ setup(
         "PyYaml",
         "sqlalchemy",
         "libaaron",
+        "listdict",
+        "requests",
+        "tornado",
     ],
 )

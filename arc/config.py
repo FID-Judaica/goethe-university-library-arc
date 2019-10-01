@@ -4,8 +4,6 @@ kinds of other useful things for retro-conversion.
 from pathlib import Path
 import libaaron
 import deromanize
-import pica_parse
-from .db import ArcDB
 from . import Decoder
 from . import cacheutils as cu
 from . import filters
@@ -28,6 +26,20 @@ class Config(deromanize.Config):
         self.db_path = Path(self.user_conf.get("pica_db")).expanduser()
         self.pica_path = Path(self.user_conf.get("pica_file")).expanduser()
 
+        try:
+            nli = self["nli_checker"]
+        except KeyError:
+            return
+
+        self.solr_url = nli["solr_url"]
+        try:
+            self.ppn_file = Path(nli["ppn_file"]).expanduser()
+        except KeyError:
+            self.ppn_file = None
+        self.books_url = self.solr_url + "/" + nli["books_core"]
+        self.authority_url = self.solr_url + "/" + nli["authority_core"]
+        self._term_paths = [Path(p).expanduser() for p in nli["terms"]]
+
     def from_schema(self, schema_name, *args, **kwargs):
         """build a decoder from a schema_name. *args and **kwargs are
         passed on to arc.decode.Decoder.
@@ -39,6 +51,7 @@ class Config(deromanize.Config):
         """initialize the ARC database, which contains pica records as
         well as some tables for auditing generated results.
         """
+        from .db import ArcDB
         return ArcDB("sqlite:///" + str(self.db_path))
 
     def get_index(self):
@@ -46,18 +59,27 @@ class Config(deromanize.Config):
         with a database. This is actually much faster than using the
         database, but you can only pull records by ppn.
         """
+        import pica_parse
         return pica_parse.PicaIndex.from_file(self.pica_path)
+
+    def get_term_counts(self):
+        from .nlitools import core
+        return core.make_dicts(*self._term_paths)
 
 
 class Session:
-    __slots__ = ("config", "decoders", "caches", "records", "getloc")
     _sessions = {}
     filters = filters
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, asynchro=False):
         """
         config -- a Config instance to pull data from
         """
+        # NLI stuff
+        self.cores = libaaron.DotDict()
+        self.termdict = None
+        self.asynchro = asynchro
+        # Not NLI stuff
         self.config = config
         self.records = config.get_db()
         self.caches = c = libaaron.DotDict()
@@ -65,14 +87,14 @@ class Session:
         self.decoders = libaaron.DotDict()
 
     @classmethod
-    def fromconfig(cls, path=None, loader=None, CfgType=Config):
+    def fromconfig(cls, path=None, loader=None, asynchro=False):
         """takes the same arguments as the ``Config`` initializer,
         constructs the config object and uses it to build a session.
         """
         s = cls._sessions.get((path, loader))
         if not s:
-            s = cls._sessions[path, loader] = cls(
-                CfgType(path=path, loader=loader)
+            s = cls._sessions[path, loader, asynchro] = cls(
+                Config(path=path, loader=loader)
             )
         return s
 
@@ -108,3 +130,20 @@ class Session:
         for chunk in chunks:
             words.append(cu.match_cached(chunk, decoder, loc, phon, **kwargs))
         return words
+
+    def add_core(self, name):
+        import solrmarc
+        core = self.cores.get(name)
+        CoreType = solrmarc.NliAsyncCore if self.asynchro else solrmarc.NliCore
+        if not core:
+            core = self.cores[name] = CoreType(self.config.solr_url + "/" + name)
+        return core
+
+    def add_cores(self, names):
+        return [self.add_core(n) for n in names]
+
+    def add_termdict(self):
+        if self.termdict:
+            return self.termdict
+        out = self.termdict = self.config.get_term_counts()
+        return out
