@@ -78,7 +78,9 @@ def match_words_to_search(chunks, searchresult, compare_func, join=True):
     genlist = [
         m
         for m in [
-            match_one(rlist, wordset) for rlist in chunks.linked_heb if rlist.data
+            match_one(rlist, wordset)
+            for rlist in chunks.linked_heb
+            if rlist.data
         ]
         if m
     ]
@@ -137,7 +139,9 @@ def make_dicts(*dict_paths):
     return dicts
 
 
-hebstrip = deromanize.tools.stripper_factory("אבגדהוזחטיכךלמםנןסעפףצץקרשת1234567890")
+hebstrip = deromanize.tools.stripper_factory(
+    "אבגדהוזחטיכךלמםנןסעפףצץקרשת1234567890"
+)
 
 
 def use_dict(rlist, dictionary, reweight=False):
@@ -220,18 +224,24 @@ def match_title(docs, chunks_map):
 
     results = []
     for doc in docs:
-        search1 = printable(doc["title"][0], doc.get("subtitle")).replace(" : ", " ")
+        search1 = printable(doc["title"][0], doc.get("subtitle")).replace(
+            " : ", " "
+        )
         search2 = doc["title"][0]
 
         try:
-            match_level, genlist = match_words_to_search(gen1, search1, compare_str)
+            match_level, genlist = match_words_to_search(
+                gen1, search1, compare_str
+            )
         except MultiMatchError:
             results.append((0.0001, doc, []))
             continue
 
         # results that don't both include a subtitle
         if not ("subtitle" in doc and "subtitle" in chunks_map):
-            match_level2, genlist2 = match_words_to_search(gen2, search2, compare_str)
+            match_level2, genlist2 = match_words_to_search(
+                gen2, search2, compare_str
+            )
             if match_level2 > match_level:
                 match_level, genlist = match_level2, genlist2
         try:
@@ -263,7 +273,9 @@ def strict_match(doc, chunks_map, gen, sub, strict=True):
     except (KeyError, MultiMatchError):
         return
 
-    search1 = printable(doc["title"][0], doc.get("subtitle")).replace(" : ", " ")
+    search1 = printable(doc["title"][0], doc.get("subtitle")).replace(
+        " : ", " "
+    )
 
     try:
         match_level, genlist = match_words_to_search(gen, search1, compare_str)

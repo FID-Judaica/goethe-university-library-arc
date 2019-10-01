@@ -193,7 +193,9 @@ class SolrCore:
         if fl:
             select_url += "?fl={}".format(",".join(fl))
         try:
-            resp = self.session.get(select_url, json={"query": query, **kwargs})
+            resp = self.session.get(
+                select_url, json={"query": query, **kwargs}
+            )
             return resp.json()["response"]
         except KeyError:
             raise QueryError(resp.text, query)
@@ -208,7 +210,11 @@ class SolrCore:
 
 
 async def run_query_async(
-    url, http: tornado.httpclient.AsyncHTTPClient, query: str, fl=None, **kwargs
+    url,
+    http: tornado.httpclient.AsyncHTTPClient,
+    query: str,
+    fl=None,
+    **kwargs
 ):
     """Run a Lucene query against the Solr database and return the docs
     array as a list.
@@ -219,7 +225,9 @@ async def run_query_async(
     try:
         header = {"Content-Type": "application/json"}
         body = encode({"query": query, **kwargs})
-        resp = await http.fetch(select_url, method="POST", headers=header, body=body)
+        resp = await http.fetch(
+            select_url, method="POST", headers=header, body=body
+        )
         return decode(resp.body.decode())["response"]
     except KeyError:
         raise QueryError(resp.text, query)

@@ -65,14 +65,18 @@ CONTROLFIELD = "{%s}controlfield" % NAMESPACE
 
 
 def gettitle(doc):
-    return [doc.get(getfield(x)) for x in ("title", "subtitle", "responsibility")]
+    return [
+        doc.get(getfield(x)) for x in ("title", "subtitle", "responsibility")
+    ]
 
 
 def mkfield(fieldname, query):
     return st.mkfield(getfield(fieldname), query)
 
 
-def mkfieldquery(fieldname, terms, escape=True, fuzzy=False, exact=False, and_=False):
+def mkfieldquery(
+    fieldname, terms, escape=True, fuzzy=False, exact=False, and_=False
+):
     join = st.and_ if and_ else st.join
     searchterms = join(terms, escape, fuzzy, exact)
     return mkfield(fieldname, searchterms)
@@ -80,7 +84,13 @@ def mkfieldquery(fieldname, terms, escape=True, fuzzy=False, exact=False, and_=F
 
 class NliCore(st.SolrCore):
     def fieldsearch(
-        self, fieldname, terms, escape=True, fuzzy=False, exact=False, and_=False
+        self,
+        fieldname,
+        terms,
+        escape=True,
+        fuzzy=False,
+        exact=False,
+        and_=False,
     ):
         query = mkfieldquery(fieldname, terms, escape, fuzzy, exact, and_)
         return self.run_query(query)
@@ -120,7 +130,9 @@ class NliAsyncCore:
 
     # note that run_query_async returns an awaitable object.
     def run_query(self, query: str, fl=None, **kwargs) -> t.Awaitable[dict]:
-        return st.run_query_async(self.url, self.session, query, fl=fl, **kwargs)
+        return st.run_query_async(
+            self.url, self.session, query, fl=fl, **kwargs
+        )
 
     # therefore, fieldsearch will also return an awaitable object.
     fieldsearch = NliCore.fieldsearch
@@ -179,7 +191,9 @@ def marcdict2doc(record: dict) -> dict:
                 subfieldlist.extend(field.get(subname, [""]))
             subfields = map(st.strip_gross_chars, filter(None, subfieldlist))
             try:
-                listdict.extend(new, "{}_{}_txt".format(fname, subname), subfields)
+                listdict.extend(
+                    new, "{}_{}_txt".format(fname, subname), subfields
+                )
             except AttributeError:
                 print(fname, fields, file=sys.stderr)
                 raise

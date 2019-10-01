@@ -7,7 +7,8 @@ HEB = r"אבגדהוזחטיכךלמםנןסעפףצץקרשת"
 MAQEF = re.compile(r"(?<=[" + HEB + r"])-(?=[" + HEB + "])")
 GERSHAYIM = re.compile(r"(?<=[" + HEB + r'])"(?=[' + HEB + "])")
 GERESH = re.compile(
-    r"(?<=[" + HEB + r"])'(?=[" + HEB + r"])" r"|(?<=\b[" + HEB + r"])'(?=\s|$)"
+    r"(?<=[" + HEB + r"])'(?=[" + HEB + r"])"
+    r"|(?<=\b[" + HEB + r"])'(?=\s|$)"
 )
 QUOTED = re.compile(
     r'(?<=")((?:['

@@ -52,6 +52,7 @@ class Config(deromanize.Config):
         well as some tables for auditing generated results.
         """
         from .db import ArcDB
+
         return ArcDB("sqlite:///" + str(self.db_path))
 
     def get_index(self):
@@ -60,10 +61,12 @@ class Config(deromanize.Config):
         database, but you can only pull records by ppn.
         """
         import pica_parse
+
         return pica_parse.PicaIndex.from_file(self.pica_path)
 
     def get_term_counts(self):
         from .nlitools import core
+
         return core.make_dicts(*self._term_paths)
 
 
@@ -133,10 +136,13 @@ class Session:
 
     def add_core(self, name):
         import solrmarc
+
         core = self.cores.get(name)
         CoreType = solrmarc.NliAsyncCore if self.asynchro else solrmarc.NliCore
         if not core:
-            core = self.cores[name] = CoreType(self.config.solr_url + "/" + name)
+            core = self.cores[name] = CoreType(
+                self.config.solr_url + "/" + name
+            )
         return core
 
     def add_cores(self, names):
