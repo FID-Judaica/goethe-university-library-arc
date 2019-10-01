@@ -141,6 +141,17 @@ class Title:
             self, self.maintitle, self.subtitle, self.responsibility
         )
 
+    @property
+    def joined(self):
+        out = [decode.debracket(self.maintitle, rebracket=False)]
+        if self.subtitle:
+            out.extend((":", decode.debracket(self.subtitle, rebracket=False)))
+        if self.responsibility:
+            out.extend(
+                ("/", decode.debracket(self.responsibility, rebracket=False))
+            )
+        return " ".join(out)
+
     def cleaned(self):
         for attr in (self.maintitle, self.subtitle, self.responsibility):
             if attr:

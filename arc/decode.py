@@ -175,15 +175,16 @@ def mk_k_fixer(vowels):
     return fix_k
 
 
-def debracket(line):
+def debracket(line, rebracket=True):
     # # bracket shenanigans # #
-    rebracket = False
+    really_rebracket = False
     if line[0] == "[" and line[-1] == "]" and "]" not in line[:-1]:
+        print
         line = line[1:-1]
-        rebracket = True
+        really_rebracket = True
     if "[" in line:
         line = re.sub(r"\[.*?\]", "", line)
-    if rebracket:
+    if rebracket and really_rebracket:
         line = "[" + line + "]"
     line = remove_combining(line)
     return line
