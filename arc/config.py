@@ -36,8 +36,6 @@ class Config(deromanize.Config):
             self.ppn_file = Path(nli["ppn_file"]).expanduser()
         except KeyError:
             self.ppn_file = None
-        self.books_url = self.solr_url + "/" + nli["books_core"]
-        self.authority_url = self.solr_url + "/" + nli["authority_core"]
         self._term_paths = [Path(p).expanduser() for p in nli["terms"]]
 
     def from_schema(self, schema_name, *args, **kwargs):
@@ -97,7 +95,8 @@ class Session:
         s = cls._sessions.get((path, loader))
         if not s:
             s = cls._sessions[path, loader, asynchro] = cls(
-                Config(path=path, loader=loader)
+                Config(path=path, loader=loader),
+                asynchro=asynchro,
             )
         return s
 
@@ -134,12 +133,16 @@ class Session:
             words.append(cu.match_cached(chunk, decoder, loc, phon, **kwargs))
         return words
 
+    # NLI stuff
     def add_core(self, name):
-        import solrmarc
 
         core = self.cores.get(name)
-        CoreType = solrmarc.NliAsyncCore if self.asynchro else solrmarc.NliCore
         if not core:
+            from .nlitools import solrmarc
+            if self.asynchro:
+                CoreType = solrmarc.NliAsyncCore
+            else:
+                CoreType = solrmarc.NliCore
             core = self.cores[name] = CoreType(
                 self.config.solr_url + "/" + name
             )
@@ -153,3 +156,26 @@ class Session:
             return self.termdict
         out = self.termdict = self.config.get_term_counts()
         return out
+
+
+def mk_default(resources="resources"):
+    import deromanize.config
+    config = deromanize.config.mk_default(resources)
+    respath = Path().absolute() / resources
+    config["nli_checker"] = {
+        "solr_url": "http://localhost:8983/solr",
+        "terms": [str(respath / "wordlists" / "terms.json")],
+    }
+    return config
+
+
+def dump_config_file(resources="resources"):
+    import sys
+    import deromanize.config
+    import yaml
+
+    if sys.stdout.isatty():
+        cfgpath = deromanize.config.CFG_PATHS[1]
+        print("# redirect the output of this command to", cfgpath)
+    config = mk_default(resources)
+    print(yaml.dump(config))

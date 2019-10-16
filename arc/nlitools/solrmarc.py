@@ -1,6 +1,6 @@
 import sys
 import json
-import solrtools as st
+from .. import solrtools as st
 import tornado
 import typing as t
 from libaaron import lxml_little_iter, pmap, pfilter, pipe

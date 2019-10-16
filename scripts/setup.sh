@@ -14,8 +14,6 @@ for repo in "${repos[@]}"; do
   pip install -e $repo
 done
 
-git clone --recurse-submodules "https://github.com/OriHoch/python-hebrew-numbers"
-pip install -U ./python-hebrew-numbers
-rm -rf python-hebrew-numbers
+pip install -U "git+https://github.com/OriHoch/python-hebrew-numbers"
 
 pip install -e .

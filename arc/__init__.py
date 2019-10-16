@@ -18,5 +18,3 @@
 # this file under either the MPL or the EUPL.
 
 from .decode import Decoder, Chunk, Chunks, debracket
-from .config import Config, CACHE_NAMES
-from deromanize import ConfigError

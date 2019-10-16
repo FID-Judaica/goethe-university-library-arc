@@ -1,3 +1,6 @@
+"""
+Some functions for dealing with Hebrew dates.
+"""
 import string
 import deromanize
 import hebrew_numbers
