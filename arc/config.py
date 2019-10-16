@@ -95,8 +95,7 @@ class Session:
         s = cls._sessions.get((path, loader))
         if not s:
             s = cls._sessions[path, loader, asynchro] = cls(
-                Config(path=path, loader=loader),
-                asynchro=asynchro,
+                Config(path=path, loader=loader), asynchro=asynchro
             )
         return s
 
@@ -139,6 +138,7 @@ class Session:
         core = self.cores.get(name)
         if not core:
             from .nlitools import solrmarc
+
             if self.asynchro:
                 CoreType = solrmarc.NliAsyncCore
             else:
@@ -160,6 +160,7 @@ class Session:
 
 def mk_default(resources="resources"):
     import deromanize.config
+
     config = deromanize.config.mk_default(resources)
     respath = Path().absolute() / resources
     config["nli_checker"] = {
