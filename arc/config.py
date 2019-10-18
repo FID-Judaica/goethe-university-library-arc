@@ -41,6 +41,7 @@ class Config(deromanize.Config):
         passed on to arc.decode.Decoder.
         """
         from .decode import Decoder
+
         profile = self.loader(self.schemas[schema_name])
         return Decoder(profile, *args, fix_k=profile.get("fix_k"), **kwargs)
 
