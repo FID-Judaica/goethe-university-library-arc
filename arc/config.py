@@ -4,8 +4,6 @@ kinds of other useful things for retro-conversion.
 from pathlib import Path
 import libaaron
 import deromanize
-from . import Decoder
-from . import cacheutils as cu
 from . import filters
 
 CACHE_NAMES = "DIN1982", "LOC/ALA", "phonological"
@@ -42,6 +40,7 @@ class Config(deromanize.Config):
         """build a decoder from a schema_name. *args and **kwargs are
         passed on to arc.decode.Decoder.
         """
+        from .decode import Decoder
         profile = self.loader(self.schemas[schema_name])
         return Decoder(profile, *args, fix_k=profile.get("fix_k"), **kwargs)
 
@@ -100,6 +99,8 @@ class Session:
         return s
 
     def add_decoder(self, name, *args, **kwargs):
+        from . import cacheutils as cu
+
         decoder = self.decoders.get(name)
         if not decoder:
             decoder = self.decoders[name] = self.config.from_schema(
@@ -125,6 +126,8 @@ class Session:
         return decoder.make_chunks(string)
 
     def usecache(self, chunks, **kwargs):
+        from . import cacheutils as cu
+
         decoder = chunks.decoder
         loc, phon = self.caches.loc, self.caches.phon
         words = []
