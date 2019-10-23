@@ -1,5 +1,5 @@
 import fastentrypoints
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="arc",
@@ -10,7 +10,7 @@ setup(
     # url='https://github.com/FID-Judaica/-parse.py',
     description="transliteration to Hebrew translator",
     long_description=open("README.rst").read(),
-    packages=["arc"],
+    packages=find_packages(),
     entry_points={
         "console_scripts": ["fl=arc.filters:main", "derom=arc.util:main"]
     },
