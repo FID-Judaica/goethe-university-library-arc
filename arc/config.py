@@ -181,6 +181,11 @@ def dump_config_file(resources="resources"):
 
     if sys.stdout.isatty():
         cfgpath = deromanize.config.CFG_PATHS[1]
-        print("# redirect the output of this command to", cfgpath)
+        print("# redirect the output of this command to:")
+        print("#")
+        print("#    ", str(cfgpath))
+        print("#")
+        print("# Then, edit it.")
+        print()
     config = mk_default(resources)
     print(yaml.dump(config))

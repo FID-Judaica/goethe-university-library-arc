@@ -12,7 +12,11 @@ setup(
     long_description=open("README.rst").read(),
     packages=find_packages(),
     entry_points={
-        "console_scripts": ["fl=arc.filters:main", "derom=arc.util:main"]
+        "console_scripts": [
+            "fl=arc.filters:main",
+            "derom=arc.util:main",
+            "dump-arc-config=arc.config:dump_config_file",
+        ]
     },
     install_requires=[
         "pica_parse",
