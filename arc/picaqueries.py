@@ -168,7 +168,9 @@ class Title:
     @property
     def text(self):
         maintitle, subtitle, responsibility = self.cleaned()
-        out = [maintitle]
+        out = []
+        if maintitle:
+            out.append(maintitle)
         if subtitle:
             out.extend((":", subtitle))
         if responsibility:
@@ -221,14 +223,16 @@ def gettitletext(titlefield):
 BAD_PROPS = "foreign yiddish_ending english_y arabic_article".split()
 
 
+def has_hebrew(record):
+    lang = record.get("021A", "U")
+    return lang and "Hebr" in lang
+
+
 def needs_conversion(record):
     if record is None:
         return False
     title = record.get("021A")
-    if not title:
-        return False
-    lang = record.get("021A", "U")
-    if lang and "Hebr" in lang:
+    if not title or has_hebrew(record):
         return False
 
     isforeign = pipe(
@@ -297,6 +301,13 @@ def getnames(record, picanames):
 
 def prerank(chunks, session):
     return session.usecache(chunks, dictionary=session.termdict)
+
+
+def isconverted(record):
+    for sf in record.get('047A', 'r', []):
+        if sf == 'Originalschrift durch autom. Retrokonversion':
+            return True
+    return False
 
 
 def getnamecomponents(record, session):

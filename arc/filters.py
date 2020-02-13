@@ -16,7 +16,6 @@
 #
 # If you do not alter this notice, a recipient may use your version of
 # this file under either the MPL or the EUPL.
-import pica_parse
 import string
 import filtermaker
 
@@ -187,6 +186,7 @@ def tester_maker(expression=None, namespace=None):
 
 
 def main():
+    import pica_parse
     import sys
     import argparse
 
