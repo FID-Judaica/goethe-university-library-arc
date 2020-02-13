@@ -304,8 +304,8 @@ def prerank(chunks, session):
 
 
 def isconverted(record):
-    for sf in record.get('047A', 'r', []):
-        if sf == 'Originalschrift durch autom. Retrokonversion':
+    for sf in record.get("047A", "r", []):
+        if sf == "Originalschrift durch autom. Retrokonversion":
             return True
     return False
 
