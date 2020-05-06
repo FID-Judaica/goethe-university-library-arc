@@ -305,8 +305,14 @@ def rank_results(names, years, replists, results):
         shared_dates = years.intersection(docdates)
         if not shared_dates and not excellent_match:
             continue
-        matches.append({"doc": doc, "diff": diff, "dates": list(shared_dates),
-                        "names": list(shared_names)})
+        matches.append(
+            {
+                "doc": doc,
+                "diff": diff,
+                "dates": list(shared_dates),
+                "names": list(shared_names),
+            }
+        )
 
     matches.sort(key=lambda m: m["diff"], reverse=True)
     return matches
