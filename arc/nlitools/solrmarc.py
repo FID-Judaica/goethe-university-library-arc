@@ -1,11 +1,15 @@
 import sys
 import json
-from .. import solrtools as st
+from arc import solrtools as st
 import tornado
 import typing as t
 from libaaron import lxml_little_iter, pmap, pfilter, pipe
-from ..decode import debracket
+from arc.decode import debracket
 import listdict
+from arc import dates as dt
+import Levenshtein
+import deromanize
+import string
 
 ALT_NAMES = [
     ("020_a", "ISBN"),
@@ -56,7 +60,6 @@ TITLEFILEDS = [
 NAMEFIELDS = list(
     map(getfield, ["name", "responsibility", "seriesPerson", "addedPerson"])
 )
-
 NAMESPACE = "http://www.loc.gov/MARC21/slim"
 NS_MAP = {"marc": NAMESPACE}
 DATAFIELD = "{%s}datafield" % NAMESPACE
@@ -72,6 +75,10 @@ def gettitle(doc):
 
 def mkfield(fieldname, query):
     return st.mkfield(getfield(fieldname), query)
+
+
+def distance_ratio(a: str, b: str):
+    return 1 - Levenshtein.jaro(a, b)
 
 
 def mkfieldquery(
@@ -234,6 +241,12 @@ def getdocs(query, nlibooks):
         raise Exception()
 
 
+def getdocyears(datestrings):
+    for datestring in datestrings:
+        for year in dt.date2years(datestring):
+            yield from dt.yearnorm(year)
+
+
 def clean_nli_text(text):
     if not text:
         return text
@@ -251,3 +264,49 @@ def clean_nli_text(text):
 def prepare_doctitle(doc):
     out = map(clean_nli_text, st.gettitle(doc))
     return " ".join(filter(None, out))
+
+
+def gettopguess(nlitext, rlists):
+    nliwords = set(nlitext.split())
+    top_generated = []
+    for rlist in rlists:
+        for replacement in rlist:
+            heb = str(replacement).strip(string.punctuation)
+            if heb in nliwords:
+                top_generated.append(heb)
+                break
+        else:
+            top_generated.append(str(rlist[0]).strip(string.punctuation))
+    return " ".join(top_generated)
+
+
+num_strip = deromanize.stripper_factory(string.digits)
+
+
+def rank_results(names, years, replists, results):
+    names = set(names)
+    years = set(years)
+    matches = []
+    for doc in results[:5]:
+        excellent_match = False
+        nli_stripped = prepare_doctitle(doc)
+        topguess = gettopguess(nli_stripped, replists)
+        diff = distance_ratio(topguess, nli_stripped)
+        if diff > 0.27:
+            continue
+        if diff < 0.02:
+            excellent_match = True
+        docnames = doc.get("allnames", [])
+        shared_names = names.intersection(docnames)
+        if not shared_names and not excellent_match:
+            continue
+        docdate = doc.get(getfield("date"), [])
+        docdates = [num_strip(d)[1] for d in docdate]
+        shared_dates = years.intersection(docdates)
+        if not shared_dates and not excellent_match:
+            continue
+        matches.append({"doc": doc, "diff": diff, "dates": list(shared_dates),
+                        "names": list(shared_names)})
+
+    matches.sort(key=lambda m: m["diff"], reverse=True)
+    return matches
