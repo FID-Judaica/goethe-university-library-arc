@@ -68,9 +68,9 @@ CONTROLFIELD = "{%s}controlfield" % NAMESPACE
 
 
 def gettitle(doc):
-    return [
-        doc.get(getfield(x)) for x in ("title", "subtitle", "responsibility")
-    ]
+    title = doc["245"][0]
+    parts = (title.get(sf) for sf in ("a", "b", "c"))
+    return [h[0] if h else h for h in parts]
 
 
 def mkfield(fieldname, query):
@@ -250,19 +250,18 @@ def getdocyears(datestrings):
 def clean_nli_text(text):
     if not text:
         return text
-    text = text[0]
     return pipe(
         text,
         debracket,
         lambda s: s.replace(">>", "").split(),
-        pmap(lambda s: s.strip(st.punctuation)),
+        pmap(lambda s: s.strip(string.punctuation)),
         pfilter(None),
         " ".join,
     )
 
 
 def prepare_doctitle(doc):
-    out = map(clean_nli_text, st.gettitle(doc))
+    out = map(clean_nli_text, gettitle(doc))
     return " ".join(filter(None, out))
 
 
@@ -272,12 +271,12 @@ def gettopguess(nlitext, rlists):
     for rlist in rlists:
         for replacement in rlist:
             heb = str(replacement).strip(string.punctuation)
-            if heb in nliwords:
+            if heb and heb in nliwords:
                 top_generated.append(heb)
                 break
         else:
             top_generated.append(str(rlist[0]).strip(string.punctuation))
-    return " ".join(top_generated)
+    return " ".join([h for h in top_generated if h])
 
 
 num_strip = deromanize.stripper_factory(string.digits)
