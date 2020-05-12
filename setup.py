@@ -28,5 +28,6 @@ setup(
         "listdict",
         "requests",
         "tornado",
+        "python-Levenshtein"
     ],
 )
