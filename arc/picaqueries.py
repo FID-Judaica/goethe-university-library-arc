@@ -7,7 +7,7 @@ import typing as t
 import string
 
 monograph = set("ac")
-namefields = "028A 02@ 028P".split()
+namefields = "028A 028@ 028P".split()
 
 # dummy argument for a kwarg where None is a possible user-supplied value
 noarg = object()
