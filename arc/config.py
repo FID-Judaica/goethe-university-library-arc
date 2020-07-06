@@ -118,8 +118,11 @@ class Session:
 
     def pickdecoder(self, string: str):
         line = filters.Line(string)
-        if line.has("only_new"):
+        only_new, only_pi = map(line.has, ("only_new", "only_pi"))
+        if only_new:
             return self.decoders.new
+        if only_pi:
+            return self.decoders.pi
         return self.decoders.old
 
     def getchunks(self, string: str):
