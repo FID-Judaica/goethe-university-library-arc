@@ -117,7 +117,7 @@ class Decoder:
         remixed = Chunks(self)
         for chunk in raw_chunks:
             if chunk == ["", ""]:
-                remixed.append("-")
+                remixed.append(Chunk([Word("-", **self.w_kw)]))
                 continue
             new_chunk = Chunk()
             for i, inner in enumerate(chunk[:-1]):
@@ -177,6 +177,8 @@ def mk_k_fixer(vowels):
 
 def debracket(line, rebracket=True):
     # # bracket shenanigans # #
+    if not line:
+        return line
     really_rebracket = False
     if line[0] == "[" and line[-1] == "]" and "]" not in line[:-1]:
         print
