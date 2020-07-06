@@ -27,7 +27,8 @@ SING_QUOTE = r"(\W|^)'\w.*?[\w.]'(\W|$)"
 DUB_QUOTE = r'(\W|^)"\w.*?[\w.]"(\W|$)'
 
 
-OLD_CHARS = set("ʾʿăaāâbdĕeēêfghḥiîkḵlmnŏoōôpqrsṣśštṭuûvwyz")
+OLD_CHARS = set("ʾʿăaāâbdĕeěēêfghḥiīîjkḵlmnŏoōôpqrsṣśštṯṭuūûvwyz")
+PI_CHARS = set("ʾʿaābdeēfghḥiījkḵlmnoōpqrsṣśštṯṭuūvwyz")
 NEW_CHARS = set("ʾʿabdefghḥikḳlmnoprsśtṭuvṿyz")
 
 # all characters possible in transliteration
@@ -46,11 +47,6 @@ CONSONANTS = "".join(CONSONANT_SET)
 
 NEW_DIGRAPHS = {"kh", "sh", "ts"}
 UNDIGRAPHS = {"k'h", "s'h", "t's", "tʹs", "kʹh", "sʹh"}
-
-# These characters should never appear in Hebrew transliteration.
-BAD_CHARS = set("īūjě")
-
-BAD_WITH_OLD = BAD_CHARS | OLD_CHARS
 
 # ō should only appear at the ends of words or in personal names. It's not
 # illegal, but it's very suspicious. short /u/ is also suspicious.
@@ -79,7 +75,6 @@ fs = filtermaker.get_filterspace()
 fs.haschars(ALL_SPECIAL, "transliteration")
 fs.haschars(SPECIAL_NO_CIRCUMFLEX, "trans_no_circum")
 fs.haschars(EXCLUSIVE_TO_OLD, "old")
-fs.haschars(BAD_CHARS, "bad")
 fs.haschars(SHORT_U, "short_u")
 fs.haschars(DIACRITIC_VOWELS, "diacritic_vowels")
 
@@ -88,7 +83,7 @@ fs.hascluster(UNDIGRAPHS, "undigraphs")
 
 fs.onlycharset(OLD_CHARS, "only_old"),
 fs.onlycharset(NEW_CHARS, "only_new")
-fs.onlycharset(BAD_WITH_OLD, "only_bad_and_old")
+fs.onlycharset(PI_CHARS, "only_pi")
 
 fs.hasregex(NON_HEB, "foreign")
 fs.hasregex(YIDDISH_ENDING, "yiddish_ending")
