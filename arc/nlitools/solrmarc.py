@@ -10,6 +10,9 @@ from arc import dates as dt
 import Levenshtein
 import deromanize
 import string
+from __future__ import annotations
+
+from typing import Sequence, NamedTuple, Option
 
 ALT_NAMES = [
     ("020_a", "ISBN"),
@@ -214,7 +217,6 @@ def marcxml2solr(xmlpath):
 def solrdocgen():
     encode = json.JSONEncoder(ensure_ascii=False).encode
     (xml,) = sys.argv[1:]
-    # core = solrtools.SolrCore("http://localhost:8983/solr/" + index)
     docs = marcxml2solr(xml)
     for doc in docs:
         print(encode(doc))
@@ -280,6 +282,13 @@ def gettopguess(nlitext, rlists):
 
 
 num_strip = deromanize.stripper_factory(string.digits)
+TitleField = Sequence[str]
+
+
+class RepTitle(NamedTuple):
+    main: TitleField
+    sub: TitleField
+    resp: TitleField
 
 
 def rank_results(names, years, replists, results):
