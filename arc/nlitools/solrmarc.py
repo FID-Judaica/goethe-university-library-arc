@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 import json
 from arc import solrtools as st
@@ -5,12 +6,12 @@ import tornado
 import typing as t
 from libaaron import lxml_little_iter, pmap, pfilter, pipe
 from arc.decode import debracket
+from statistics import mean
 import listdict
 from arc import dates as dt
 import Levenshtein
 import deromanize
 import string
-from __future__ import annotations
 
 from typing import Sequence, NamedTuple, Option
 
@@ -267,8 +268,7 @@ def prepare_doctitle(doc):
     return " ".join(filter(None, out))
 
 
-def gettopguess(nlitext, rlists):
-    nliwords = set(nlitext.split())
+def gettopguess(nliwords, rlists):
     top_generated = []
     for rlist in rlists:
         for replacement in rlist:
@@ -278,11 +278,11 @@ def gettopguess(nlitext, rlists):
                 break
         else:
             top_generated.append(str(rlist[0]).strip(string.punctuation))
-    return " ".join([h for h in top_generated if h])
+    return [h for h in top_generated if h]
 
 
 num_strip = deromanize.stripper_factory(string.digits)
-TitleField = Sequence[str]
+TitleField = Option[Sequence[Sequence[str]]]
 
 
 class RepTitle(NamedTuple):
@@ -298,10 +298,67 @@ def rank_results(names, years, replists, results):
     for doc in results[:5]:
         excellent_match = False
         nli_stripped = prepare_doctitle(doc)
-        topguess = gettopguess(nli_stripped, replists)
+        nliwords = set(nli_stripped.split())
+        topguess = " ".join(gettopguess(nliwords, replists))
         diff = distance_ratio(topguess, nli_stripped)
         if diff > 0.27:
             continue
+        if diff < 0.02:
+            excellent_match = True
+        docnames = doc.get("allnames", [])
+        shared_names = names.intersection(docnames)
+        if not shared_names and not excellent_match:
+            continue
+        docdate = doc.get(getfield("date"), [])
+        docdates = [num_strip(d)[1] for d in docdate]
+        shared_dates = years.intersection(docdates)
+        if not shared_dates and not excellent_match:
+            continue
+        matches.append(
+            {
+                "doc": doc,
+                "diff": diff,
+                "dates": list(shared_dates),
+                "names": list(shared_names),
+            }
+        )
+
+    matches.sort(key=lambda m: m["diff"], reverse=True)
+    return matches
+
+
+def get_distances(nlitext, title: RepTitle):
+    nli_words = nlitext.split()
+    nli_set = set(nli_words)
+
+    main = gettopguess(nli_set, title.main)
+    len_main = len(main)
+    main_of_nli = " ".join(nli_words[:len_main])
+    main_distance = distance_ratio(" ".join(main), main_of_nli)
+
+    nli_remaining_set = set(nli_words[len_main:])
+    remaining = gettopguess(nli_remaining_set, title.sub + title.resp)
+    overlap = nli_remaining_set.intersection(nli_remaining_set)
+    len_remaining = len(remaining)
+    remaining_of_nli = " ".join(nli_words[len_main:len_remaining])
+    remaining_distance = distance_ratio(" ".join(remaining), remaining_of_nli)
+
+    return main_distance, remaining_distance, len(overlap) / len_remaining
+
+
+def rank_results2(names, years, title: RepTitle, results):
+    names = set(names)
+    years = set(years)
+    matches = []
+    for doc in results[:5]:
+        excellent_match = False
+        nli_stripped = prepare_doctitle(doc)
+        main_distance, remaining_distance, remaining_ratio = get_distances(
+            nli_stripped, title
+        )
+        if main_distance > 0.1:
+            continue
+        diff = mean([main_distance, remaining_distance / 2])
         if diff < 0.02:
             excellent_match = True
         docnames = doc.get("allnames", [])
