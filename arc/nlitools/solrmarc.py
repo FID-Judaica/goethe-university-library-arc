@@ -12,8 +12,10 @@ from arc import dates as dt
 import Levenshtein
 import deromanize
 import string
+from itertools import chain
 
-from typing import Sequence, NamedTuple, Option
+from typing import Sequence, NamedTuple, Option, Collection
+
 
 ALT_NAMES = [
     ("020_a", "ISBN"),
@@ -250,15 +252,22 @@ def getdocyears(datestrings):
             yield from dt.yearnorm(year)
 
 
+def split_no_punctuation(string_):
+    return pipe(
+        string_.replace("-", " "),
+        str.split,
+        pmap(lambda s: s.strip(string.punctuation)),
+        pfilter(None),
+    )
+
+
 def clean_nli_text(text):
     if not text:
         return text
     return pipe(
         text,
         debracket,
-        lambda s: s.replace(">>", "").split(),
-        pmap(lambda s: s.strip(string.punctuation)),
-        pfilter(None),
+        lambda s: split_no_punctuation(s.replace(">>", "")),
         " ".join,
     )
 
@@ -346,8 +355,30 @@ def get_distances(nlitext, title: RepTitle):
     return main_distance, remaining_distance, len(overlap) / len_remaining
 
 
-def rank_results2(names, years, title: RepTitle, results):
-    names = set(names)
+Reps = Sequence[str]
+
+
+def strip_strings_and_update_set(s: set, strings):
+    s.update(s.strip(string.punctuation) for s in strings)
+
+
+def make_name_set(names, name_reps):
+    name_parts = set()
+    for name in names:
+        name_parts.update(split_no_punctuation(name))
+    for name in name_reps:
+        strip_strings_and_update_set(name_parts, chain(*name))
+    return set(names), name_parts
+
+
+def rank_results2(
+        names,
+        people_reps: Collection[Sequence[Reps]],
+        years,
+        title: RepTitle,
+        results,
+):
+    names, name_parts = set(names)
     years = set(years)
     matches = []
     for doc in results[:5]:
