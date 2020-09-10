@@ -345,6 +345,7 @@ def get_distances(nlitext, title: RepTitle):
     main = gettopguess(nli_set, title.main)
     len_main = len(main)
     main_of_nli = " ".join(nli_words[:len_main])
+    # main_of_generated =
     main_distance, main_ratio = distance_ratio(" ".join(main), main_of_nli)
     print(main_distance)
 
@@ -439,6 +440,15 @@ def rank_results2(
             shared_dates = []
 
         # composite matching
+        append = False
+        if excellent_match:
+            append = True
+        elif shared_dates and not (names and docnames):
+            append = True
+        elif (shared_names or partial_names) and not (years or docdate):
+            append = True
+        elif (shared_dates or partial_names) and shared_dates:
+            append = True
         matches.append(
             {
                 "doc": doc,
