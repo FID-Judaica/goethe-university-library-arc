@@ -14,7 +14,7 @@ import deromanize
 import string
 from itertools import chain
 
-from typing import Sequence, NamedTuple, Option, Collection
+from typing import Sequence, NamedTuple, Optional, Collection
 
 
 ALT_NAMES = [
@@ -84,7 +84,9 @@ def mkfield(fieldname, query):
 
 
 def distance_ratio(a: str, b: str):
-    return 1 - Levenshtein.jaro(a, b)
+    # return 1 - Levenshtein.jaro_winkler(a, b)
+    distance = Levenshtein.distance(a, b)
+    return distance, (distance / len(a))
 
 
 def mkfieldquery(
@@ -291,7 +293,7 @@ def gettopguess(nliwords, rlists):
 
 
 num_strip = deromanize.stripper_factory(string.digits)
-TitleField = Option[Sequence[Sequence[str]]]
+TitleField = Optional[Sequence[Sequence[str]]]
 
 
 class RepTitle(NamedTuple):
@@ -343,16 +345,21 @@ def get_distances(nlitext, title: RepTitle):
     main = gettopguess(nli_set, title.main)
     len_main = len(main)
     main_of_nli = " ".join(nli_words[:len_main])
-    main_distance = distance_ratio(" ".join(main), main_of_nli)
+    main_distance, main_ratio = distance_ratio(" ".join(main), main_of_nli)
+    print(main_distance)
 
     nli_remaining_set = set(nli_words[len_main:])
-    remaining = gettopguess(nli_remaining_set, title.sub + title.resp)
-    overlap = nli_remaining_set.intersection(nli_remaining_set)
+    remaining = gettopguess(
+        nli_remaining_set, (title.sub or []) + (title.resp or [])
+    )
+    # overlap = nli_remaining_set.intersection(nli_remaining_set)
     len_remaining = len(remaining)
     remaining_of_nli = " ".join(nli_words[len_main:len_remaining])
-    remaining_distance = distance_ratio(" ".join(remaining), remaining_of_nli)
+    remaining_ratio = 1 - Levenshtein.jaro(
+        " ".join(remaining), remaining_of_nli
+    )
 
-    return main_distance, remaining_distance, len(overlap) / len_remaining
+    return main_distance, main_ratio, remaining_ratio
 
 
 Reps = Sequence[str]
@@ -367,40 +374,71 @@ def make_name_set(names, name_reps):
     for name in names:
         name_parts.update(split_no_punctuation(name))
     for name in name_reps:
-        strip_strings_and_update_set(name_parts, chain(*name))
+        if name:
+            strip_strings_and_update_set(name_parts, chain(*name))
     return set(names), name_parts
 
 
+def match_names(names, name_parts, match_names):
+    shared_names = names.intersection(match_names)
+    if shared_names:
+        return shared_names, None
+    _, match_parts = make_name_set(match_names, [])
+    overlap = name_parts.intersection(match_parts)
+    return shared_names, overlap
+
+
 def rank_results2(
-        names,
-        people_reps: Collection[Sequence[Reps]],
-        years,
-        title: RepTitle,
-        results,
+    names,
+    people_reps: Collection[Sequence[Reps]],
+    publisher,
+    publisher_reps: Collection[Sequence[Reps]],
+    years,
+    title: RepTitle,
+    results,
 ):
-    names, name_parts = set(names)
-    years = set(years)
+    names, name_parts = make_name_set(names, people_reps)
+    for ben in ("בן", "בין", "ben", "Ben"):
+        name_parts.discard(ben)
+    years = set(map(dt.yearnorm, years))
     matches = []
     for doc in results[:5]:
         excellent_match = False
+
+        # title matching
         nli_stripped = prepare_doctitle(doc)
-        main_distance, remaining_distance, remaining_ratio = get_distances(
+        main_distance, main_ratio, remaining_distance = get_distances(
             nli_stripped, title
         )
-        if main_distance > 0.1:
+        if main_distance > 1:
             continue
-        diff = mean([main_distance, remaining_distance / 2])
-        if diff < 0.02:
+
+        diff = mean([main_ratio, remaining_distance / 2])
+        if diff < 0.03:
             excellent_match = True
+
+        # name matching
         docnames = doc.get("allnames", [])
-        shared_names = names.intersection(docnames)
-        if not shared_names and not excellent_match:
-            continue
-        docdate = doc.get(getfield("date"), [])
-        docdates = [num_strip(d)[1] for d in docdate]
-        shared_dates = years.intersection(docdates)
-        if not shared_dates and not excellent_match:
-            continue
+        if docnames and names:
+            shared_names, partial_names = match_names(
+                names, name_parts, docnames
+            )
+            if not shared_names and not partial_names and not excellent_match:
+                continue
+        else:
+            shared_names = []
+
+        # date matching
+        docdate = doc.get(getfield("date"), []) if years else []
+        if docdate:
+            docdates = [num_strip(getdocyears(d))[1] for d in docdate]
+            shared_dates = years.intersection(docdates)
+            if not shared_dates and not excellent_match:
+                continue
+        else:
+            shared_dates = []
+
+        # composite matching
         matches.append(
             {
                 "doc": doc,
