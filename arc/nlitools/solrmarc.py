@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys
 import json
 from arc import solrtools as st
+from arc import picaqueries
 import tornado
 import typing as t
 from libaaron import lxml_little_iter, pmap, pfilter, pipe
@@ -204,6 +205,7 @@ def marcdict2doc(record: dict) -> dict:
             subfieldlist = []
             for field in fields:
                 subfieldlist.extend(field.get(subname, [""]))
+
             subfields = map(st.strip_gross_chars, filter(None, subfieldlist))
             try:
                 listdict.extend(
@@ -345,8 +347,8 @@ def get_distances(nlitext, title: RepTitle):
     main = gettopguess(nli_set, title.main)
     len_main = len(main)
     main_of_nli = " ".join(nli_words[:len_main])
-    # main_of_generated =
-    main_distance, main_ratio = distance_ratio(" ".join(main), main_of_nli)
+    main_title = " ".join(main)
+    main_distance, main_ratio = distance_ratio(main_title, main_of_nli)
     print(main_distance)
 
     nli_remaining_set = set(nli_words[len_main:])
@@ -356,11 +358,16 @@ def get_distances(nlitext, title: RepTitle):
     # overlap = nli_remaining_set.intersection(nli_remaining_set)
     len_remaining = len(remaining)
     remaining_of_nli = " ".join(nli_words[len_main:len_remaining])
-    remaining_ratio = 1 - Levenshtein.jaro(
-        " ".join(remaining), remaining_of_nli
-    )
+    remaining_title = " ".join(remaining)
+    remaining_ratio = 1 - Levenshtein.jaro(remaining_title, remaining_of_nli)
 
-    return main_distance, main_ratio, remaining_ratio
+    return (
+        main_title,
+        main_distance,
+        main_ratio,
+        remaining_title,
+        remaining_ratio,
+    )
 
 
 Reps = Sequence[str]
@@ -408,9 +415,13 @@ def rank_results2(
 
         # title matching
         nli_stripped = prepare_doctitle(doc)
-        main_distance, main_ratio, remaining_distance = get_distances(
-            nli_stripped, title
-        )
+        (
+            main_title,
+            main_distance,
+            main_ratio,
+            remaining_title,
+            remaining_distance,
+        ) = get_distances(nli_stripped, title)
         if main_distance > 1:
             continue
 
@@ -441,22 +452,32 @@ def rank_results2(
 
         # composite matching
         append = False
+        title = picaqueries.Title(*gettitle(results[0])).text
+        has_names = shared_names or partial_names
         if excellent_match:
+            append = True
+        elif main_title and main_distance == 0 and not remaining_title:
+            title = main_title
             append = True
         elif shared_dates and not (names and docnames):
             append = True
-        elif (shared_names or partial_names) and not (years or docdate):
+        elif has_names and not (years or docdate):
             append = True
-        elif (shared_dates or partial_names) and shared_dates:
+        elif has_names and shared_dates:
             append = True
-        matches.append(
-            {
-                "doc": doc,
-                "diff": diff,
-                "dates": list(shared_dates),
-                "names": list(shared_names),
-            }
-        )
+        elif has_names and shared_dates:
+            append = True
+
+        if append:
+            matches.append(
+                {
+                    "title": title,
+                    "doc": doc,
+                    "diff": diff,
+                    "dates": list(shared_dates),
+                    "names": list(shared_names),
+                }
+            )
 
     matches.sort(key=lambda m: m["diff"], reverse=True)
     return matches
