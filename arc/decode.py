@@ -145,34 +145,21 @@ class Decoder:
         return parts
 
 
-def cleanline(line):
-    if line[0] == "@":
-        line = line[1:]
+def fix_initial_article(line):
+    if line.startswith("ha"):
+        line = re.sub(r"^ha\w{0,2}- *@", "h @", line)
+    return line
 
-    line = debracket(line)
 
+def close_hyphen_gaps(line):
     if "- " in line:
         line = re.sub(r"(\w)- +([^@])", r"\1-\2", line)
     if " -" in line:
         line = re.sub(r" -(\w)", r"-\1", line)
-    if line.startswith("ha"):
-        line = re.sub(r"^ha\w{0,2}- *@", "h @", line)
-
-    line = re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
-    line = line.replace("ʼ", "'")
-    return line
 
 
-def mk_k_fixer(vowels):
-    vowels = "".join(vowels)
-    exp = re.compile("(?<=[" + vowels + "])k(?![k-])")
-
-    def fix_k(line):
-        if "k" not in line:
-            return line
-        return exp.sub("ḵ", line)
-
-    return fix_k
+def un_contract_yod(line):
+    return re.sub(r"\b([blw])([î]-|-[iî])", r"\1i-yĕ", line)
 
 
 def debracket(line, rebracket=True):
@@ -190,6 +177,31 @@ def debracket(line, rebracket=True):
         line = "[" + line + "]"
     line = remove_combining(line)
     return line
+
+
+def cleanline(line):
+    if line[0] == "@":
+        line = line[1:]
+
+    line = debracket(line)
+    line = close_hyphen_gaps(line)
+    line = fix_initial_article(line)
+
+    line = un_contract_yod(line)
+    line = line.replace("ʼ", "'")
+    return line
+
+
+def mk_k_fixer(vowels):
+    vowels = "".join(vowels)
+    exp = re.compile("(?<=[" + vowels + "])k(?![k-])")
+
+    def fix_k(line):
+        if "k" not in line:
+            return line
+        return exp.sub("ḵ", line)
+
+    return fix_k
 
 
 def remove_combining(line):
