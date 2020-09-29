@@ -193,6 +193,12 @@ class Title:
             out.append(responsibility)
         return " ".join(out)
 
+    def __getstate__(self):
+        return self.maintitle, self.subtitle, self.responsibility
+
+    def __setstate__(self, state):
+        self.maintitle, self.subtitle, self.responsibility = state
+
 
 def gettitle(subs):
     return Title(*map(subs.getone, "adh"))
