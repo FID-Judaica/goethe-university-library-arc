@@ -80,6 +80,36 @@ def gettitle(doc):
     return [h[0] if h else h for h in parts]
 
 
+def get_titles(doc):
+    titles = doc.get("245", [])
+    output = []
+    for title in titles:
+        parts = (title.get(sf) for sf in ("a", "b", "c"))
+        output.append(picaqueries.Title(*(h[0] if h else h for h in parts)))
+    return output
+
+
+def get_names(doc):
+    return doc.get("allnames", [])
+
+
+def get_date(doc):
+    return doc.get(getfield("date"), [])
+
+
+def get_id(doc):
+    return doc["doc"]["controlfields"]["001"]
+
+
+def mk_api_doc(doc):
+    return {
+        "title": get_titles(doc),
+        "creator": get_names(doc),
+        "date": get_date(doc),
+        "identifier": get_id(doc),
+    }
+
+
 def mkfield(fieldname, query):
     return st.mkfield(getfield(fieldname), query)
 
@@ -281,6 +311,14 @@ def prepare_doctitle(doc):
     return " ".join(filter(None, out))
 
 
+def prepare_api_doctitle(doc):
+    title = doc["title"][0]
+    out = map(
+        clean_nli_text, (title.maintitle, title.subtitle, title.responsibility)
+    )
+    return " ".join(filter(None, out))
+
+
 def gettopguess(nliwords, rlists):
     top_generated = []
     for rlist in rlists:
@@ -414,7 +452,7 @@ def rank_results2(
         excellent_match = False
 
         # title matching
-        nli_stripped = prepare_doctitle(doc)
+        nli_stripped = prepare_api_doctitle(doc)
         (
             main_title,
             main_distance,
@@ -430,7 +468,7 @@ def rank_results2(
             excellent_match = True
 
         # name matching
-        docnames = doc.get("allnames", [])
+        docnames = doc["creator"]
         if docnames and names:
             shared_names, partial_names = match_names(
                 names, name_parts, docnames
@@ -441,7 +479,7 @@ def rank_results2(
             shared_names = []
 
         # date matching
-        docdate = doc.get(getfield("date"), []) if years else []
+        docdate = doc["date"] if years else None
         if docdate:
             docdates = [num_strip(getdocyears(d))[1] for d in docdate]
             shared_dates = years.intersection(docdates)
@@ -459,14 +497,15 @@ def rank_results2(
         elif main_title and main_distance == 0 and not remaining_title:
             title = main_title
             append = True
-        elif shared_dates and not (names and docnames):
-            append = True
-        elif has_names and not (years or docdate):
-            append = True
-        elif has_names and shared_dates:
-            append = True
-        elif has_names and shared_dates:
-            append = True
+        elif diff < 0.3:
+            if shared_dates and not (names and docnames):
+                append = True
+            elif has_names and not (years or docdate):
+                append = True
+            elif has_names and shared_dates:
+                append = True
+            elif has_names and shared_dates:
+                append = True
 
         if append:
             matches.append(
