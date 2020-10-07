@@ -156,6 +156,7 @@ def close_hyphen_gaps(line):
         line = re.sub(r"(\w)- +([^@])", r"\1-\2", line)
     if " -" in line:
         line = re.sub(r" -(\w)", r"-\1", line)
+    return line
 
 
 def un_contract_yod(line):

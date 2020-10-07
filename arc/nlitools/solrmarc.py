@@ -60,6 +60,7 @@ TITLEFILEDS = [
         "series",
         "addedSeries",
         "volume",
+        "date",
         "oldVolume",
         "addedVolume",
     )
@@ -80,12 +81,25 @@ def gettitle(doc):
     return [h[0] if h else h for h in parts]
 
 
+def remove_ending(string):
+    if not string:
+        return string
+    if string[-1] in ("/", ":"):
+        return string[:-2]
+    return string
+
+
 def get_titles(doc):
     titles = doc.get("245", [])
     output = []
     for title in titles:
         parts = (title.get(sf) for sf in ("a", "b", "c"))
-        output.append(picaqueries.Title(*(h[0] if h else h for h in parts)))
+
+        output.append(
+            picaqueries.Title(
+                *(remove_ending(h[0]) if h else h for h in parts)
+            )
+        )
     return output
 
 
@@ -94,11 +108,22 @@ def get_names(doc):
 
 
 def get_date(doc):
-    return doc.get(getfield("date"), [])
+    out = []
+    for field in doc.get("260", []):
+        for sb in field.get("c", []):
+            out.append(sb)
+    return out
+
+
+class NoIdentifier(Exception):
+    pass
 
 
 def get_id(doc):
-    return doc["doc"]["controlfields"]["001"]
+    try:
+        return doc["controlfields"]["001"]
+    except KeyError:
+        raise NoIdentifier(doc["controlfields"])
 
 
 def mk_api_doc(doc):
@@ -117,7 +142,9 @@ def mkfield(fieldname, query):
 def distance_ratio(a: str, b: str):
     # return 1 - Levenshtein.jaro_winkler(a, b)
     distance = Levenshtein.distance(a, b)
-    return distance, (distance / len(a))
+    if distance == 0:
+        return 0, 0.0
+    return distance, (distance / len(a)) if len(a) else 1.0
 
 
 def mkfieldquery(
@@ -387,15 +414,12 @@ def get_distances(nlitext, title: RepTitle):
     main_of_nli = " ".join(nli_words[:len_main])
     main_title = " ".join(main)
     main_distance, main_ratio = distance_ratio(main_title, main_of_nli)
-    print(main_distance)
 
     nli_remaining_set = set(nli_words[len_main:])
     remaining = gettopguess(
         nli_remaining_set, (title.sub or []) + (title.resp or [])
     )
-    # overlap = nli_remaining_set.intersection(nli_remaining_set)
-    len_remaining = len(remaining)
-    remaining_of_nli = " ".join(nli_words[len_main:len_remaining])
+    remaining_of_nli = " ".join(nli_words[len_main:])
     remaining_title = " ".join(remaining)
     remaining_ratio = 1 - Levenshtein.jaro(remaining_title, remaining_of_nli)
 
@@ -446,7 +470,10 @@ def rank_results2(
     names, name_parts = make_name_set(names, people_reps)
     for ben in ("בן", "בין", "ben", "Ben"):
         name_parts.discard(ben)
-    years = set(map(dt.yearnorm, years))
+    years_ = set()
+    for ys in map(dt.yearnorm, years):
+        years_.update(ys)
+    years = years_
     matches = []
     for doc in results[:5]:
         excellent_match = False
@@ -458,12 +485,12 @@ def rank_results2(
             main_distance,
             main_ratio,
             remaining_title,
-            remaining_distance,
+            remaining_ratio,
         ) = get_distances(nli_stripped, title)
         if main_distance > 1:
             continue
 
-        diff = mean([main_ratio, remaining_distance / 2])
+        diff = mean([main_ratio, remaining_ratio / 2])
         if diff < 0.03:
             excellent_match = True
 
@@ -477,11 +504,12 @@ def rank_results2(
                 continue
         else:
             shared_names = []
+            partial_names = []
 
         # date matching
         docdate = doc["date"] if years else None
         if docdate:
-            docdates = [num_strip(getdocyears(d))[1] for d in docdate]
+            docdates = list(getdocyears(docdate))
             shared_dates = years.intersection(docdates)
             if not shared_dates and not excellent_match:
                 continue
@@ -490,12 +518,12 @@ def rank_results2(
 
         # composite matching
         append = False
-        title = picaqueries.Title(*gettitle(results[0])).text
+        ret_title = doc["title"][0].joined
         has_names = shared_names or partial_names
         if excellent_match:
             append = True
         elif main_title and main_distance == 0 and not remaining_title:
-            title = main_title
+            ret_title = main_title
             append = True
         elif diff < 0.3:
             if shared_dates and not (names and docnames):
@@ -504,13 +532,11 @@ def rank_results2(
                 append = True
             elif has_names and shared_dates:
                 append = True
-            elif has_names and shared_dates:
-                append = True
 
         if append:
             matches.append(
                 {
-                    "title": title,
+                    "title": ret_title,
                     "doc": doc,
                     "diff": diff,
                     "dates": list(shared_dates),
