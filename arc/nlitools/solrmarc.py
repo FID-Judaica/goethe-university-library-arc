@@ -522,16 +522,18 @@ def rank_results2(
         has_names = shared_names or partial_names
         if excellent_match:
             append = True
-        elif main_title and main_distance == 0 and not remaining_title:
+        elif diff < 0.3 and (
+                (shared_dates and not (names and docnames))
+                # or (has_names and not (years or docdate))
+                or (shared_names and not (years and docdate))
+                or (has_names and shared_dates)
+        ):
+            append = True
+        elif main_title and main_distance == 0 and (
+                (not remaining_title) or (shared_names and shared_dates)
+        ):
             ret_title = main_title
             append = True
-        elif diff < 0.3:
-            if shared_dates and not (names and docnames):
-                append = True
-            elif has_names and not (years or docdate):
-                append = True
-            elif has_names and shared_dates:
-                append = True
 
         if append:
             matches.append(
