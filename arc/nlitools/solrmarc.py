@@ -529,11 +529,12 @@ def rank_results2(
                 or (has_names and shared_dates)
         ):
             append = True
-        elif main_title and main_distance == 0 and (
-                (not remaining_title) or (shared_names and shared_dates)
-        ):
-            ret_title = main_title
-            append = True
+        elif main_title and main_distance == 0:
+            if shared_names and shared_dates:
+                append = True
+            elif not remaining_title:
+                ret_title = main_title
+                append = True
 
         if append:
             matches.append(
