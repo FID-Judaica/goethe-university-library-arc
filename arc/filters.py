@@ -57,11 +57,11 @@ NON_HEB = r"""(?x)
     # search certain words
     \b
     (a|der|di|des|de|dos|das|dem|in|der|zi|von|
-     zî|fun|fir|fûn|le|il|of|and|und|un|tsu|zu|ṣu)\ |
+     zî|fun|fir|fûn|le|il|of|and|und|un|tsu|zu|ṣu)\b |
     # search letters/clusters which should not appear in hebrew transliteration
 
     \bth|au|ao|ae|aa|oe|pf|
-    ei|ie|ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
+    ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
     """
 YIDDISH_ENDING = "[" + "".join(CONSONANT_SET - {"y"}) + r"]n(\s|$)"
 ENGLISH_Y = "[" + CONSONANTS + r"]y(\s|$)"
