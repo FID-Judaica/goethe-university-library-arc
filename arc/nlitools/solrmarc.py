@@ -144,7 +144,7 @@ def distance_ratio(a: str, b: str):
     distance = Levenshtein.distance(a, b)
     if distance == 0:
         return 0, 0.0
-    return distance, (distance / len(a)) if len(a) else 1.0
+    return (distance, (distance / len(a))) if len(a) else (0, 1.0)
 
 
 def mkfieldquery(
@@ -378,7 +378,7 @@ def rank_results(names, years, replists, results):
         nli_stripped = prepare_doctitle(doc)
         nliwords = set(nli_stripped.split())
         topguess = " ".join(gettopguess(nliwords, replists))
-        diff = distance_ratio(topguess, nli_stripped)
+        distance, diff = distance_ratio(topguess, nli_stripped)
         if diff > 0.27:
             continue
         if diff < 0.02:
