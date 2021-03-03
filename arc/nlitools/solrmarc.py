@@ -346,16 +346,16 @@ def prepare_api_doctitle(doc):
     return " ".join(filter(None, out))
 
 
+def get_top_word(nliwords, rlist):
+    for replacement in rlist:
+        heb = str(replacement).strip(string.punctuation)
+        if heb and heb in nliwords:
+            return heb
+    return str(rlist[0]).strip(string.punctuation)
+
+
 def gettopguess(nliwords, rlists):
-    top_generated = []
-    for rlist in rlists:
-        for replacement in rlist:
-            heb = str(replacement).strip(string.punctuation)
-            if heb and heb in nliwords:
-                top_generated.append(heb)
-                break
-        else:
-            top_generated.append(str(rlist[0]).strip(string.punctuation))
+    top_generated = [get_top_word(nliwords, rl) for rl in rlists]
     return [h for h in top_generated if h]
 
 
@@ -480,6 +480,8 @@ def rank_results2(
 
         # title matching
         nli_stripped = prepare_api_doctitle(doc)
+        if not nli_stripped:
+            continue
         (
             main_title,
             main_distance,
@@ -487,10 +489,15 @@ def rank_results2(
             remaining_title,
             remaining_ratio,
         ) = get_distances(nli_stripped, title)
-        if main_distance > 1:
+        if (
+                main_distance > 1
+                or main_ratio > 0.1
+                or not main_title
+                or main_title[0] != nli_stripped[0]
+        ):
             continue
 
-        diff = mean([main_ratio, remaining_ratio / 2])
+        diff = mean([main_ratio, main_ratio, remaining_ratio])
         if diff < 0.03:
             excellent_match = True
 
@@ -517,26 +524,26 @@ def rank_results2(
             shared_dates = []
 
         # composite matching
-        append = False
         ret_title = doc["title"][0].joined
         has_names = shared_names or partial_names
+        criteria = []
         if excellent_match:
-            append = True
+            criteria.append("excellent_match")
         elif diff < 0.3 and (
                 (shared_dates and not (names and docnames))
                 # or (has_names and not (years or docdate))
                 or (shared_names and not (years and docdate))
                 or (has_names and shared_dates)
         ):
-            append = True
+            criteria.append(("small_diff", main_title, remaining_title))
         elif main_title and main_distance == 0:
             if shared_names and shared_dates:
-                append = True
+                criteria.append("same_main_and_shared_metadata")
             elif not remaining_title:
+                criteria.append("same_main_no_remaining")
                 ret_title = main_title
-                append = True
 
-        if append:
+        if criteria:
             matches.append(
                 {
                     "title": ret_title,
@@ -544,8 +551,9 @@ def rank_results2(
                     "diff": diff,
                     "dates": list(shared_dates),
                     "names": list(shared_names),
+                    "criteria": criteria,
                 }
             )
 
-    matches.sort(key=lambda m: m["diff"], reverse=True)
+    matches.sort(key=lambda m: m["diff"])
     return matches
