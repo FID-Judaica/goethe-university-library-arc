@@ -24,8 +24,11 @@ class Config(deromanize.Config):
           default.
         """
         super().__init__(path, loader)
-        self.db_path = Path(self.user_conf.get("pica_db")).expanduser()
-        self.pica_path = Path(self.user_conf.get("pica_file")).expanduser()
+        try:
+            self.db_path = Path(self.user_conf.get("pica_db")).expanduser()
+            self.pica_path = Path(self.user_conf.get("pica_file")).expanduser()
+        except TypeError:
+            pass
 
         try:
             nli = self["nli_checker"]
