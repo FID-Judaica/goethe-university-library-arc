@@ -114,7 +114,10 @@ class Session:
         self.asynchro = asynchro
         # Not NLI stuff
         self.config = config
-        self.records = config.get_db()
+        try:
+            self.records = config.get_db()
+        except AttributeError:
+            pass
         self.caches = c = libaaron.DotDict()
         c.din, c.loc, c.phon = self.config.get_caches(*CACHE_NAMES)
         self.decoders = libaaron.DotDict()
