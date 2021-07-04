@@ -25,7 +25,7 @@ setup(
         "PyYaml",
         "sqlalchemy",
         "libaaron @ git+https://github.com/ninjaaron/libaaron.git",
-        "listdict @ https://github.com/ubffm/listdict.git",
+        "listdict @ git+https://github.com/ubffm/listdict.git",
         "requests",
         "tornado",
         "python-Levenshtein",
