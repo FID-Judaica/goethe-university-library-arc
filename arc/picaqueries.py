@@ -327,7 +327,7 @@ def getnamecomponents(record, session):
         for pair in transnames:
             for name in pair:
                 if name:
-                    chunks = session.getchunks(name)
+                    chunks, _ = session.getchunks(name)
                     rlists = prerank(chunks)
                     output.update(str(rep) for rl in rlists for rep in rl)
     output.discard("-")

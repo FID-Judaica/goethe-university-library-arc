@@ -21,6 +21,7 @@ import unicodedata
 from . import decode
 import deromanize as dr
 from deromanize import cacheutils
+from typing import NamedTuple, Tuple
 
 CacheObject, CacheDB = cacheutils.CacheObject, cacheutils.CacheDB
 NOCHECK = {"־", "h", "ה", "-", "։", ";"}
@@ -28,8 +29,9 @@ try:
     from HspellPy import Hspell
 
     hspell = Hspell(linguistics=True)
-except ImportError:
+except ImportError as e:
     hspell = None
+    hspell_error = e
 
 
 class FieldError(Exception):
@@ -194,12 +196,20 @@ def get_newreps(keys, cache, ignore=None):
     uncached = []
     for k, rep_dict in keys.items():
         cached = cache[k]
+        # singular = True if len(cached) == 1 else False
         ignore_seen(ignore, rep_dict, cached)
         m, um, uc = get_stats(rep_dict, cached, k)
         matched += m
         unmatched += um
         uncached += uc
     return matched, unmatched, uncached
+
+
+class MatchInfo(NamedTuple):
+    candidate: bool
+    cached: bool
+    # singular: bool
+    recognized: bool
 
 
 def match_cached(
@@ -209,51 +219,69 @@ def match_cached(
     phon_cache,
     spelling_fallback=False,
     dictionary=None,
-) -> dr.ReplacementList:
+) -> Tuple[dr.ReplacementList, MatchInfo]:
+    candidate = False
+    cached = False
+    # singular = False
+    recognized = False
+
     if not isinstance(chunk, decode.Chunk):
-        return chunk
+        return chunk, MatchInfo(candidate, cached, recognized)
 
     rlist = chunk.base.stripped_heb.makestat()
     key = rlist.key
     if key == str(rlist[0]) or key in NOCHECK or len(key) <= 1:
-        return dr.fix_gershayim_late(chunk.heb)
+        return dr.fix_gershayim_late(chunk.heb), MatchInfo(
+            candidate, cached, recognized
+        )
     for rep in rlist[:10]:
         try:
             int(str(rep))
-            return dr.fix_gershayim_late(chunk.heb)
+            return dr.fix_gershayim_late(chunk.heb), MatchInfo(
+                candidate, cached, recognized
+            )
         except ValueError:
             pass
 
+    candidate = True
     loc_keys, phon_keys = collect_keys(rlist, decoder)
     matchedloc, unmatchedloc, _ = get_newreps(loc_keys, loc_cache)
+    if matchedloc or unmatchedloc:
+        cached = True
     ignore = [str(r) for r in matchedloc]
     ignore += [str(r) for r in unmatchedloc]
     matchedphon, unmatchedphon, uncached = get_newreps(
         phon_keys, phon_cache, ignore
     )
+    if matchedphon or unmatchedphon:
+        cached = True
     cached = []
     for reps in (matchedloc, unmatchedloc, matchedphon, unmatchedphon):
         reps.sort(key=lambda r: r.weight, reverse=True)
         cached.extend(reps)
 
-    if spelling_fallback:
+    if spelling_fallback or dictionary:
+        spelling_ok = False
+        dict_ok = False
         for r in uncached:
             r.weight /= 2
             heb = str(r)
-            try:
-                if not (hspell.check_word(heb) and hspell.linginfo(heb)):
-                    r.weight /= 100
-            except UnicodeEncodeError:
-                pass
+            if spelling_fallback:
+                try:
+                    if hspell.check_word(heb) and hspell.linginfo(heb):
+                        spelling_ok = True
+                except UnicodeEncodeError:
+                    pass
+                except AttributeError:
+                    raise hspell_error
+            if dictionary and dictionary.get(heb):
+                dict_ok
 
-    elif dictionary:
-        for i, r in enumerate(uncached):
-            r.weight /= 2
-            heb = str(r)
-            match = dictionary.get(heb)
-            if not match:
+            if dict_ok or spelling_ok:
+                recognized = True
+            else:
                 r.weight /= 100
 
     uncached.sort(key=lambda r: r.weight, reverse=True)
     new_rlist = dr.ReplacementList(rlist.keyparts, cached + uncached)
-    return chunk.basemerge(new_rlist)
+    return chunk.basemerge(new_rlist), MatchInfo(candidate, cached, recognized)

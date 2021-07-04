@@ -44,6 +44,10 @@ class NoMatch(Exception):
     pass
 
 
+class NotTranscription(Exception):
+    pass
+
+
 class Decoder:
     """Decoder class for our catalogue standards."""
 
@@ -54,8 +58,10 @@ class Decoder:
         fix_numerals=False,
         spellcheck=False,
         fix_k=False,
+        name=None
     ):
         """Initialize with a deserialized profile from deromanize"""
+        self.name = name
         self.profile = profile
         self.joined_prefix = trees.Trie(
             {i: i for i in profile["joined_prefixes"]}
@@ -190,6 +196,7 @@ def cleanline(line):
 
     line = un_contract_yod(line)
     line = line.replace("ʼ", "'")
+
     return line
 
 

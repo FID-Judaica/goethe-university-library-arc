@@ -86,7 +86,7 @@ def main():
             print(chunk.rom)
             print("-" * len(chunk.rom))
             if args.cache:
-                word = cu.match_cached(chunk, decoder, loccache, phoncache)
+                word, _ = cu.match_cached(chunk, decoder, loccache, phoncache)
             else:
                 word = chunk.heb
             # use_dict(word, dictionary)

@@ -19,15 +19,16 @@ setup(
         ]
     },
     install_requires=[
-        "pica_parse",
-        "filtermaker",
-        "deromanize",
+        "pica_parse @ git+https://github.com/FID-Judaica/pica_parse.py.git",
+        "filtermaker @ git+https://github.com/FID-Judaica/filtermaker.git",
+        "deromanize @ git+https://github.com/ubffm/deromanize.git",
         "PyYaml",
         "sqlalchemy",
-        "libaaron",
-        "listdict",
+        "libaaron @ git+https://github.com/ninjaaron/libaaron.git",
+        "listdict @ https://github.com/ubffm/listdict.git",
         "requests",
         "tornado",
-        "python-Levenshtein"
+        "python-Levenshtein",
+        "python-hebrew-numbers @ git+https://github.com/OriHoch/python-hebrew-numbers.git",
     ],
 )

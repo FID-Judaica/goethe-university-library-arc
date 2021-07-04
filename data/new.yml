@@ -55,6 +55,7 @@ consonants:
   sh: ש
   t: ת
   "'": [א, ע, '']
+  "ʻ": [ע, א]
 
 vowels:
   i: [י, '']
@@ -140,7 +141,7 @@ broken_clusters:
 
 # The data structures below are not for use by keygenerators, but for
 # the final decoder.
-gem_prefixes: [ha, mi, ba, ka, la, she, ṿa]
+gem_prefixes: [ha, mi, va, ba, ka, la, she, ṿa, kha]
 joined_prefixes: [h, m, b, v, k, l, sh, ṿ, u]
 prefix_vowels: eiao
 
@@ -149,7 +150,7 @@ to_new:
 
   sets:
     kh: [k, ך]
-    kha: [ka, ך] 
+    kha: [ka, ך]
     ḳ: [k, ק]
     kah: ka, כה
     khah: kha, כה

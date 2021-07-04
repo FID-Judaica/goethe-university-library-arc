@@ -6,7 +6,7 @@ from arc import picaqueries
 import tornado
 import typing as t
 from libaaron import lxml_little_iter, pmap, pfilter, pipe
-from arc.decode import debracket
+from arc.decode import debracket, NotTranscription
 from statistics import mean
 import listdict
 from arc import dates as dt
@@ -222,12 +222,12 @@ def rename_field(obj, old_name, new_name):
         pass
 
 
-def marcfieldsplit(f):
-    return f.attrib["tag"], f.findall(SUBFIELD)
+def marcfieldsplit(field):
+    return field.attrib["tag"], field.findall(SUBFIELD)
 
 
-def marcsubsplit(subf):
-    return subf.attrib["code"], subf.text or ""
+def marcsubsplit(subfield):
+    return subfield.attrib["code"], subfield.text or ""
 
 
 def record2dict(record):
@@ -490,8 +490,7 @@ def rank_results2(
             remaining_ratio,
         ) = get_distances(nli_stripped, title)
         if (
-                main_distance > 1
-                or main_ratio > 0.1
+                (main_distance > 1 and main_ratio > 0.1)
                 or not main_title
                 or main_title[0] != nli_stripped[0]
         ):
@@ -556,4 +555,4 @@ def rank_results2(
             )
 
     matches.sort(key=lambda m: m["diff"])
-    return matches
+    return matches 

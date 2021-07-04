@@ -27,9 +27,10 @@ SING_QUOTE = r"(\W|^)'\w.*?[\w.]'(\W|$)"
 DUB_QUOTE = r'(\W|^)"\w.*?[\w.]"(\W|$)'
 
 
-OLD_CHARS = set("ʾʿăaāâbdĕeěēêfghḥiīîjkḵlmnŏoōôpqrsṣśštṯṭuūûvwyz")
+OLD_CHARS = set("ʾʿăaāâbdĕeěēêfghḥiīîjkḵlmnŏoōôpqrsṣśštṯṭuūûvwyzʻ")
 PI_CHARS = set("ʾʿaābdeēfghḥiījkḵlmnoōpqrsṣśštṯṭuūvwyz")
-NEW_CHARS = set("ʾʿabdefghḥikḳlmnoprsśtṭuvṿyz")
+NEW_CHARS = set("ʾʿabdefghḥikḳlmnoprsśtṭuvṿyzʻ")
+HEB_CHARS = set("אב‎ג‎ד‎ה‎ו‎ז‎ח‎ט‎י‎כ‎ך‎ל‎מ‎נ‎ס‎ע‎פ‎צ‎ק‎ר‎ש‎ת‎ם‎ן‎ף‎ץ‎")
 
 # all characters possible in transliteration
 ALL_CHARS = NEW_CHARS | OLD_CHARS
@@ -57,11 +58,11 @@ NON_HEB = r"""(?x)
     # search certain words
     \b
     (a|der|di|des|de|dos|das|dem|in|der|zi|von|
-     zî|fun|fir|fûn|le|il|of|and|und|un|tsu|zu|ṣu)\b |
+     zî|fun|fir|fûn|il|of|and|und|un|tsu|zu|ṣu)\b |
     # search letters/clusters which should not appear in hebrew transliteration
 
     \bth|au|ao|ae|aa|oe|pf|
-    ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßcx]
+    ou|eu|ue|oo|ee|uo|eo|io|oi|ui|iu|[üäëöïáéàèíßçcx]
     """
 YIDDISH_ENDING = "[" + "".join(CONSONANT_SET - {"y"}) + r"]n(\s|$)"
 ENGLISH_Y = "[" + CONSONANTS + r"]y(\s|$)"
@@ -75,8 +76,11 @@ fs = filtermaker.get_filterspace()
 fs.haschars(ALL_SPECIAL, "transliteration")
 fs.haschars(SPECIAL_NO_CIRCUMFLEX, "trans_no_circum")
 fs.haschars(EXCLUSIVE_TO_OLD, "old")
+fs.haschars(EXCLUSIVE_TO_NEW, "new")
+fs.haschars(HEB_CHARS, "heb")
 fs.haschars(SHORT_U, "short_u")
 fs.haschars(DIACRITIC_VOWELS, "diacritic_vowels")
+fs.haschars(string.ascii_letters, "ascii_letters")
 
 fs.hascluster(NEW_DIGRAPHS, "new_digraphs")
 fs.hascluster(UNDIGRAPHS, "undigraphs")
@@ -84,6 +88,7 @@ fs.hascluster(UNDIGRAPHS, "undigraphs")
 fs.onlycharset(OLD_CHARS, "only_old"),
 fs.onlycharset(NEW_CHARS, "only_new")
 fs.onlycharset(PI_CHARS, "only_pi")
+fs.onlycharset(HEB_CHARS, "only_heb")
 
 fs.hasregex(NON_HEB, "foreign")
 fs.hasregex(YIDDISH_ENDING, "yiddish_ending")

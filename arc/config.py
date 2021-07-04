@@ -4,7 +4,10 @@ kinds of other useful things for retro-conversion.
 from pathlib import Path
 import libaaron
 import deromanize
+import enum
 from . import filters
+from .decode import Decoder
+from typing import NamedTuple
 
 CACHE_NAMES = "DIN1982", "LOC/ALA", "phonological"
 
@@ -40,10 +43,15 @@ class Config(deromanize.Config):
         """build a decoder from a schema_name. *args and **kwargs are
         passed on to arc.decode.Decoder.
         """
-        from .decode import Decoder
 
         profile = self.loader(self.schemas[schema_name])
-        return Decoder(profile, *args, fix_k=profile.get("fix_k"), **kwargs)
+        return Decoder(
+            profile,
+            *args,
+            fix_k=profile.get("fix_k"),
+            name=schema_name,
+            **kwargs
+        )
 
     def get_db(self):
         """initialize the ARC database, which contains pica records as
@@ -66,6 +74,27 @@ class Config(deromanize.Config):
         from .nlitools import core
 
         return core.make_dicts(*self._term_paths)
+
+
+class Standard(enum.Enum):
+    old = "Old DIN 31631"
+    new = "New DIN 31631"
+    pi = "PI"
+    unknown = "unknown"
+    not_latin = "not_latin"
+
+
+class InputInfo(NamedTuple):
+    standard: Standard
+    foreign_tokens: bool
+    transliteration_tokens: bool
+
+
+class ConversionInfo(NamedTuple):
+    fully_converted: bool
+    all_cached: bool
+    # all_singular: bool
+    all_recognized: bool
 
 
 class Session:
@@ -118,16 +147,35 @@ class Session:
 
     def pickdecoder(self, string: str):
         line = filters.Line(string)
-        only_new, only_pi = map(line.has, ("only_new", "only_pi"))
+        has_old, has_new, only_new, only_pi, only_old, ascii_letters = map(
+            line.has,
+            ("old", "new", "only_new", "only_pi", "only_old", "ascii_letters"),
+        )
+        foreign_tokens = any(
+            map(line.has, ("english_y", "foreign", "yiddish_ending"))
+        )
+        transliteration_tokens = line.has("transliteration")
+
+        def input_info(standard):
+            return InputInfo(standard, foreign_tokens, transliteration_tokens)
+
         if only_new:
-            return self.decoders.new
+            return self.decoders.new, input_info(Standard.new)
         if only_pi:
-            return self.decoders.pi
-        return self.decoders.old
+            return self.decoders.pi, input_info(Standard.pi)
+        if only_old:
+            return self.decoders.old, input_info(Standard.old)
+        if has_new:
+            if has_old:
+                return self.decoders.old, input_info(Standard.unknown)
+            return self.decoders.new, input_info(Standard.new)
+        if not ascii_letters:
+            return self.decoders.old, input_info(Standard.not_latin)
+        return self.decoders.old, input_info(Standard.unknown)
 
     def getchunks(self, string: str):
-        decoder = self.pickdecoder(string)
-        return decoder.make_chunks(string)
+        decoder, input_info = self.pickdecoder(string)
+        return decoder.make_chunks(string), input_info
 
     def usecache(self, chunks, **kwargs):
         from . import cacheutils as cu
@@ -135,9 +183,35 @@ class Session:
         decoder = chunks.decoder
         loc, phon = self.caches.loc, self.caches.phon
         words = []
+
+        fully_converted = True
+        all_cached = True
+        # all_singular = True
+        all_recognized = True
         for chunk in chunks:
-            words.append(cu.match_cached(chunk, decoder, loc, phon, **kwargs))
-        return words
+            rlist, match_info = cu.match_cached(
+                chunk, decoder, loc, phon, **kwargs
+            )
+            words.append(rlist)
+            if fully_converted:
+                if not filters.Line(str(rlist[0])).has("only_heb"):
+                    fully_converted = False
+                    all_cached = False
+                    # all_singular = False
+                    all_recognized = False
+                elif all_recognized:
+                    if all_cached:
+                        if not match_info.cached:
+                            all_cached = False
+                            # all_singular = False
+                            if not match_info.recognized:
+                                all_recognized = False
+                        # elif all_singular and not match_info.singular:
+                        #     all_singular = False
+
+        return words, ConversionInfo(
+            fully_converted, all_cached, all_recognized
+        )
 
     # NLI stuff
     def add_core(self, name):
