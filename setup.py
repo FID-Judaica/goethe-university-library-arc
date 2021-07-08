@@ -24,7 +24,7 @@ setup(
         "deromanize @ git+https://github.com/ubffm/deromanize.git",
         "PyYaml",
         "sqlalchemy",
-        "libaaron @ git+https://github.com/ninjaaron/libaaron.git",
+        "libaaron @ git+https://github.com/ninjaaron/libaaron.git@master",
         "listdict @ git+https://github.com/ubffm/listdict.git",
         "requests",
         "tornado",
