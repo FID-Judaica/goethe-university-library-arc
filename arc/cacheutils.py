@@ -70,7 +70,7 @@ def loc2phon(loc):
     vowels = "ieaou"
     gstops = {"ʿ", "ʾ"}
     phon = loc.replace("ḥ", "ch").replace("kh", "ch")
-    if phon[-1] == "h" and phon[-2:-1] in vowels:
+    if len(phon) > 1 and phon[-1] == "h" and phon[-2:-1] in vowels:
         phon = phon[:-1]
     phon = "".join(
         c
