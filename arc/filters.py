@@ -126,6 +126,58 @@ def longinclosed(line):
 
 Line = fs.Filter
 
+# new API
+from filtermaker import chainable
+import re
+
+
+class TrascriptionText(chainable.PropertyText):
+    __slots__ = ()
+    transliteration = chainable.haschars(ALL_SPECIAL)
+    trans_no_circum = chainable.haschars(SPECIAL_NO_CIRCUMFLEX)
+    old = chainable.haschars(EXCLUSIVE_TO_OLD)
+    new_chars = chainable.haschars(EXCLUSIVE_TO_NEW)
+    heb = chainable.haschars(HEB_CHARS)
+    short_u = chainable.haschars(SHORT_U)
+    diacritic_vowels = chainable.haschars(DIACRITIC_VOWELS)
+    ascii_letters = chainable.haschars(string.ascii_letters)
+
+    new_digraphs = chainable.hascluster(NEW_DIGRAPHS)
+    undigraphs = chainable.hascluster(UNDIGRAPHS)
+
+    only_old = chainable.onlycharset(OLD_CHARS)
+    only_new = chainable.onlycharset(NEW_CHARS)
+    only_pi = chainable.onlycharset(PI_CHARS)
+    only_heb = chainable.onlycharset(HEB_CHARS)
+
+    foreign = chainable.hasregex(re.compile(NON_HEB))
+    yiddish_ending = chainable.hasregex(re.compile(YIDDISH_ENDING))
+    arabic_article = chainable.hasregex(re.compile(ARABIC_ARTICLE))
+    english_y = chainable.hasregex(re.compile(ENGLISH_Y))
+
+    @chainable.chainable
+    def inner_sing_quote(text):
+        return "'" in text and not SING_QUOTE.search(text)
+
+    @chainable.chainable
+    def inner_dub_quote(text):
+        return '"' in text and not DUB_QUOTE.search(text)
+
+    @chainable.chainable
+    def unmarked_long_o(text):
+        proper = any(i in text for i in ("lōmō", "yaʿaqōv", "kōl", "mōš"))
+        return not proper and UNMARKED_LONG_O.search(text)
+
+    @chainable.chainable
+    def only_western(text):
+        return all(ord(c) < 256 for c in text)
+
+    @chainable.chainable
+    def longinclosed(text):
+        for m in LONG_IN_CLOSED.findall(text):
+            if m[-1] != m[-2]:
+                return True
+
 
 ###################################################################
 # # Here ends the library part. The rest is for the CLI utility # #
@@ -229,9 +281,7 @@ def main():
         for field in rec:
             for key, text in field.items():
                 if test(Line(text, *props), required, forbidden):
-                    fields_of_interest.append(
-                        "{}.{}: {}".format(field.id, key, text)
-                    )
+                    fields_of_interest.append("{}.{}: {}".format(field.id, key, text))
         if fields_of_interest:
             print(rec.ppn, *fields_of_interest, sep="\t")
 

@@ -52,10 +52,10 @@ def ismonograph(record):
 
 
 def _hastranscription(text):
-    line = filters.Line(text[0])
-    if any(line.has(p) for p in ("foreign", "english_y")):
+    line = filters.TrascriptionText(text)
+    if line.foreign or line.english_y:
         return False
-    if line.has("transliteration"):
+    if line.transliteration:
         return True
     return False
 

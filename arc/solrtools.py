@@ -11,7 +11,7 @@ import typing as t
 import json
 
 decode = json.JSONDecoder().decode
-encode = json.JSONEncoder().encode
+encode = json.JSONEncoder(ensure_ascii=False).encode
 
 # schema API
 hebrew_text = {
