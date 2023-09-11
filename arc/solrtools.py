@@ -105,18 +105,18 @@ class SolrCore:
 
     @property
     def rsess(self):
-        s = getattr(self, "_rsess", None)
-        if not s:
-            s = self._rsess = requests.Session()
-        return s
+        if not self._rsess:
+            self._rsess = requests.Session()
+        return self._rsess
 
-    def __init__(self, url):
+    def __init__(self, url, **kwargs):
         """object for querying Solr that contains the core URL and a
         requests.Session for http.
         """
         self.url = url.rstrip("/")
         self.session = self.rsess
         self.add_docs = libaaron.chunkprocess(self.add_doc)
+        self.requests_kws = kwargs
 
     @property
     def schema_url(self):
@@ -128,13 +128,17 @@ class SolrCore:
 
         - fields: a list of fields for which to use the Hebrew schema.
         """
-        self.session.post(self.schema_url, json=hebrew_text)
+        self.session.post(
+            self.schema_url, json=hebrew_text, **self.requests_kws
+        )
         for fieldname in fields:
             yield self.add_heb_field(fieldname)
 
     def add_heb_field(self, name):
         heb_text_template["add-field"]["name"] = name
-        return self.session.post(self.schema_url, json=heb_text_template)
+        return self.session.post(
+            self.schema_url, json=heb_text_template, **self.requests_kws
+        )
 
     def add_source_field(self):
         self.session.post(
@@ -148,6 +152,7 @@ class SolrCore:
                     },
                 }
             },
+            **self.requests_kws
         )
         return self.session.post(
             self.schema_url,
@@ -161,6 +166,7 @@ class SolrCore:
                     "indexed": False,
                 }
             },
+            **self.requests_kws
         )
 
     def add_copy_fields(self, name: str, fields: t.Iterable[str]):
@@ -173,7 +179,9 @@ class SolrCore:
         resps = []
         for field in fields:
             copy_field = {"add-copy-field": {"source": field, "dest": name}}
-            resps.append(self.session.post(self.schema_url, json=copy_field))
+            resps.append(self.session.post(
+                self.schema_url, json=copy_field, **self.requests_kws
+            ))
         return resps
 
     def add_copy_all(self):
@@ -183,7 +191,9 @@ class SolrCore:
     def add_doc(self, doc: t.Union[list, dict]) -> dict:
         """documents to solr over the json api"""
         doc_url = self.url + "/update/json/docs"
-        return self.session.post(doc_url, json=doc).json()
+        return self.session.post(
+            doc_url, json=doc, **self.requests_kws
+        ).json()
 
     def run_query(self, query: str, fl=None, **kwargs):
         """Run a Lucene query against the Solr database and return the docs
@@ -194,7 +204,9 @@ class SolrCore:
             select_url += "?fl={}".format(",".join(fl))
         try:
             resp = self.session.get(
-                select_url, json={"query": query, **kwargs}
+                select_url,
+                json={"query": query, **kwargs},
+                **self.requests_kws,
             )
             return resp.json()["response"]
         except KeyError:
@@ -203,7 +215,9 @@ class SolrCore:
     def update(self, message: dict):
         """general update command"""
         update_url = self.url + "/update"
-        return self.session.post(update_url, json=message).json()
+        return self.session.post(
+            update_url, json=message, **self.requests_kws
+        ).json()
 
     def commit(self):
         self.update({"commit": {}})
